@@ -191,6 +191,63 @@ ul {
   font-size: 0.86rem;
 }
 
+.dice-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 10px 0;
+}
+
+.die {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.2rem;
+  height: 2.2rem;
+  font-size: 1.1rem;
+  font-weight: bold;
+  border-radius: 6px;
+  cursor: pointer;
+  margin: 0 3px;
+  border: 2px solid rgba(0,0,0,0.2);
+  transition: transform 0.1s;
+  user-select: none;
+}
+.die:hover { transform: scale(1.15); }
+.die-dead { background: #c0392b; color: #fff; }
+.die-wounded { background: #e67e22; color: #fff; }
+.die-success { background: #27ae60; color: #fff; }
+.die-wild { background: #8e44ad; color: #fff; }
+
+.die-sacrificed { outline: 3px solid #8e44ad; outline-offset: 1px; }
+
+.die-entry {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin: 0 4px;
+}
+
+.die-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.4rem;
+  height: 1.4rem;
+  font-size: 0.75rem;
+  border-radius: 4px;
+  cursor: pointer;
+  background: rgba(0,0,0,0.12);
+  border: 1px solid rgba(0,0,0,0.2);
+  user-select: none;
+  transition: background 0.1s;
+}
+.die-btn:hover { background: rgba(0,0,0,0.25); }
+.die-btn.sac-active { background: #8e44ad; color: #fff; border-color: #6c3483; }
+.die-btn.reroll-btn { font-size: 0.9rem; }
+
+
+
 .log {
   max-height: 220px;
   overflow-y: auto;

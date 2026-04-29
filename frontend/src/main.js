@@ -1,17 +1,22 @@
 import './style.css';
 import {
   autoPlayUntilHumanOrEnd,
+  beginInteractiveTurn,
   createGame,
   getActivePlayer,
   humanBuyEquipment,
   humanBuyTroop,
+  humanConfirmBattle,
+  humanToggleSacrifice,
   humanDischargeSpecialist,
   humanDrawCard,
   humanHireSpecialist,
   humanProceedToCampaign,
+  humanRerollDie,
   humanRunCampaign,
   humanTakeLoan,
   humanToggleContractSelection,
+  previewBattleOutcome,
   runSimulation,
   scoreTable,
 } from './gameEngine';
@@ -52,6 +57,39 @@ function renderTurnEffects() {
     .join('');
 }
 
+function specialistText(card) {
+  return `${card.name} (Tier ${card.tier}, cost ${card.cost}) — ${card.effect}`;
+}
+
+function eventText(card) {
+  const ongoing = Object.entries(card.ongoing || {}).map(([k, v]) => {
+    if (k === 'campaignCostDelta') return `Campaign cost ${v > 0 ? `+${v}` : v}`;
+    if (k === 'contractBonus') return `${v.type.toUpperCase()} contracts +${v.coins} coin`;
+    if (k === 'marketDrawDelta') return `Market draws ${v > 0 ? `+${v}` : v}`;
+    if (k === 'endOfTurnDrawBonus') return `Draw +${v} card at end of turn`;
+    if (k === 'meleeWildsDisabled') return `Melee 6s not wild`;
+    if (k === 'guardFreeToAdd') return `GUARD free to add`;
+    if (k === 'devastateFreeToAdd') return `DEVASTATE free to add`;
+    if (k === 'recruitCostReduction') return `First recruit -${v} coin`;
+    return null;
+  }).filter(Boolean).join('; ');
+  const roundEnd = card.roundEnd ? ` | Round end: ${card.roundEnd}` : '';
+  return `${card.name} (Tier ${card.tier})${ongoing ? ` — ${ongoing}` : ''}${roundEnd}`;
+}
+
+function renderOffer() {
+  const contracts = game.offer.contract.map((c) => `<div class="chip">${contractText(c)}</div>`).join('') || '<em>None</em>';
+  const specialists = game.offer.specialist.map((c) => `<div class="chip">${specialistText(c)}</div>`).join('') || '<em>None</em>';
+  const events = game.offer.event.filter(Boolean).map((c) => `<div class="chip">${eventText(c)}</div>`).join('') || '<em>None</em>';
+  return `
+    <h4>Offer</h4>
+    <p><strong>Contracts:</strong></p><div class="contracts-list small">${contracts}</div>
+    <p><strong>Specialists:</strong></p><div class="contracts-list small">${specialists}</div>
+    <p><strong>Events:</strong></p><div class="contracts-list small">${events}</div>
+  `;
+}
+
+
 function renderStartScreen() {
   app.innerHTML = `
     <main class="layout">
@@ -81,9 +119,14 @@ function renderStartScreen() {
 
   document.querySelector('#start-sim').addEventListener('click', () => {
     const playerCount = Math.max(2, Math.min(4, Number(playersInput.value) || 4));
-    game = createGame({ mode: 'simulation', playerCount, humanPlayers: 0 });
-    runSimulation(game);
-    renderGame();
+    try {
+      game = createGame({ mode: 'simulation', playerCount, humanPlayers: 0 });
+      runSimulation(game);
+      renderGame();
+    } catch (err) {
+      console.error('Simulation error:', err);
+      app.innerHTML = `<main class="layout"><section class="panel"><h2>Error: ${err.message}</h2><pre>${err.stack}</pre></section></main>`;
+    }
   });
 
   document.querySelector('#start-int').addEventListener('click', () => {
@@ -192,6 +235,46 @@ function renderHumanControls(active) {
     `;
   }
 
+  if (game.humanState.step === 'battle') {
+    const pb = game.humanState.pendingBattle;
+    const { currentContract, rolls, contractQueue, sacrificed } = pb;
+    const preview = previewBattleOutcome(active, currentContract, rolls, sacrificed);
+    const outcomeLabel = preview.willSucceed
+      ? '<span class="win">✓ Will SUCCEED</span>'
+      : '<span class="fail">✗ Will FAIL</span>';
+    const sbActive = active.retinue.some((s) => s.name === 'Standard Bearer');
+    const diceRows = ['melee', 'ranged', 'mounted'].map((type) => {
+      if (rolls[type].length === 0) return '';
+      const dice = rolls[type].map((roll, i) => {
+        let cls = 'die-dead';
+        if (roll === 3) cls = 'die-wounded';
+        else if (roll === 6) cls = 'die-wild';
+        else if (roll >= 4) cls = 'die-success';
+        const isSac = sacrificed[type].includes(i);
+        const isEligible = roll === 3 && !sbActive;
+        const sacBtn = isEligible
+          ? `<span class="die-btn${isSac ? ' sac-active' : ''}" data-action="sacrifice-die" data-type="${type}" data-index="${i}" title="${isSac ? 'Undo sacrifice' : 'Sacrifice for a success (unit dies)'}">⚔</span>`
+          : '';
+        return `<span class="die-entry"><span class="die ${cls}${isSac ? ' die-sacrificed' : ''}">${roll}</span>${sacBtn}<span class="die-btn reroll-btn" data-action="reroll-die" data-type="${type}" data-index="${i}" title="Reroll (costs 1 equipment)">↩</span></span>`;
+      }).join('');
+      return `<div><strong>${type.charAt(0).toUpperCase() + type.slice(1)}:</strong> ${dice}</div>`;
+    }).join('');
+    const deadSummary = `M${preview.dead.melee}/R${preview.dead.ranged}/Mo${preview.dead.mounted}`;
+    const woundSummary = `M${preview.wounded.melee}/R${preview.wounded.ranged}/Mo${preview.wounded.mounted}`;
+    return `
+      <section class="panel">
+        <h3>Battle: ${currentContract.title}</h3>
+        <p>Requires: M${currentContract.requirements.melee} / R${currentContract.requirements.ranged} / Mo${currentContract.requirements.mounted} — ${currentContract.type.toUpperCase()} [${currentContract.region}]</p>
+        <p>${outcomeLabel}${preview.willSucceed ? ` (${currentContract.renown} renown, ${currentContract.coins} coins)` : ''}</p>
+        <div class="dice-grid">${diceRows}</div>
+        <p class="meta">Dead: ${deadSummary} | Wounded: ${woundSummary}</p>
+        <p class="meta">Equipment: ${active.equipment} | ⚔ = sacrifice (unit dies, adds a success) | ↩ = reroll (1 equipment)</p>
+        <button class="primary" data-action="confirm-battle">Confirm Result</button>
+        ${contractQueue.length > 0 ? `<p class="meta">${contractQueue.length} more contract(s) queued after this.</p>` : ''}
+      </section>
+    `;
+  }
+
   if (game.humanState.step === 'draw') {
     return `
       <section class="panel">
@@ -263,12 +346,7 @@ function renderGame() {
           <p>Armoury tokens: ${game.armoury}</p>
           <p>Contracts left in deck: ${game.contractDeck.length}</p>
           <p>Specialists left in deck: ${game.specialistDeck.length}</p>
-          <h4>Offer</h4>
-          <ul>
-            <li>Contract: ${game.offer.contract.length}</li>
-            <li>Specialist: ${game.offer.specialist.length}</li>
-            <li>Event: ${game.offer.event.length}</li>
-          </ul>
+          ${renderOffer()}
         </div>
       </section>
 
@@ -311,6 +389,9 @@ function renderGame() {
       if (action === 'to-campaign') humanProceedToCampaign(game);
       if (action === 'toggle-contract') humanToggleContractSelection(game, id);
       if (action === 'run-campaign') humanRunCampaign(game);
+      if (action === 'reroll-die') humanRerollDie(game, type, Number(button.dataset.index));
+      if (action === 'sacrifice-die') humanToggleSacrifice(game, type, Number(button.dataset.index));
+      if (action === 'confirm-battle') humanConfirmBattle(game);
       if (action === 'draw') humanDrawCard(game, source);
 
       if (!game.isFinished && game.mode === 'interactive' && !getActivePlayer(game).isHuman) {

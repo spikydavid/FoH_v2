@@ -578,7 +578,8 @@ function createInitialGame(config) {
   if (openingContract) game.offer.contract.push(openingContract);
   const openingSpecialist = drawFromDeck(game, 'specialist');
   if (openingSpecialist) game.offer.specialist.push(openingSpecialist);
-  game.offer.event.push(drawFromDeck(game, 'event'));
+  const openingEvent = drawFromDeck(game, 'event');
+  if (openingEvent) game.offer.event.push(openingEvent);
 
   for (const player of players) {
     for (let i = 0; i < 5; i += 1) {
@@ -691,9 +692,17 @@ function specialistBonus(player) {
   return bonus;
 }
 
-function resolveContractBattle(game, player, contract, availableTroops) {
-  const req = cloneTroops(contract.requirements);
+function rollContractDice(availableTroops) {
   const rolls = { melee: [], ranged: [], mounted: [] };
+  for (const type of ['melee', 'ranged', 'mounted']) {
+    for (let i = 0; i < availableTroops[type]; i += 1) {
+      rolls[type].push(rand(1, 6));
+    }
+  }
+  return rolls;
+}
+
+function classifyRolls(rolls, player) {
   const successes = emptyTroops();
   let wildcard = 0;
   const wounded = emptyTroops();
@@ -702,16 +711,12 @@ function resolveContractBattle(game, player, contract, availableTroops) {
   const standardBearer = hasSpecialist(player, 'Standard Bearer');
 
   for (const type of ['melee', 'ranged', 'mounted']) {
-    for (let i = 0; i < availableTroops[type]; i += 1) {
-      const roll = rand(1, 6);
-      rolls[type].push(roll);
+    for (const roll of rolls[type]) {
       if (roll <= 2) {
         dead[type] += 1;
       } else if (roll === 3) {
         wounded[type] += 1;
-        if (standardBearer) {
-          successes[type] += 1;
-        }
+        if (standardBearer) successes[type] += 1;
       } else if (roll <= 5) {
         if (roll === 5 && drillSergeantFlips > 0) {
           wildcard += 1;
@@ -724,12 +729,85 @@ function resolveContractBattle(game, player, contract, availableTroops) {
       }
     }
   }
+  return { successes, wildcard, wounded, dead };
+}
+
+export function previewBattleOutcome(player, contract, rolls, sacrificedIndices = null) {
+  const { successes, wildcard: wc, wounded, dead } = classifyRolls(rolls, player);
+  const rem = cloneTroops(contract.requirements);
+  let remainingWild = wc;
+  const exSuc = cloneTroops(successes);
+  const standardBearer = hasSpecialist(player, 'Standard Bearer');
+
+  if (sacrificedIndices !== null) {
+    // Apply explicit player sacrifices
+    for (const type of ['melee', 'ranged', 'mounted']) {
+      for (const idx of sacrificedIndices[type]) {
+        const roll = rolls[type]?.[idx];
+        if (roll === undefined) continue;
+        const isEligible = roll === 3 && !standardBearer;
+        if (isEligible) {
+          exSuc[type] += 1;
+          wounded[type] = Math.max(0, wounded[type] - 1);
+          dead[type] += 1;
+        }
+      }
+    }
+  }
+
+  for (const type of ['melee', 'ranged', 'mounted']) {
+    const use = Math.min(exSuc[type], rem[type]);
+    rem[type] -= use;
+    exSuc[type] -= use;
+  }
+  for (const type of ['melee', 'ranged', 'mounted']) {
+    if (rem[type] === 0) continue;
+    const use = Math.min(rem[type], remainingWild);
+    rem[type] -= use;
+    remainingWild -= use;
+  }
+  if (sacrificedIndices === null) {
+    // Auto-sacrifice potential (AI / simple preview without explicit choices)
+    for (const type of ['melee', 'ranged', 'mounted']) {
+      if (rem[type] === 0) continue;
+      const killable = exSuc[type] + wounded[type];
+      const use = Math.min(rem[type], killable);
+      rem[type] -= use;
+    }
+  }
+  const willSucceed = rem.melee + rem.ranged + rem.mounted === 0;
+  return { dead, wounded, willSucceed };
+}
+
+function finalizeContractBattle(game, player, contract, rolls, availableTroops, humanSacrificed = null) {
+  const req = cloneTroops(contract.requirements);
+  const { successes, wildcard: initWild, wounded, dead } = classifyRolls(rolls, player);
+  let wildcard = initWild;
 
   const bonus = specialistBonus(player);
   successes.melee += bonus.melee;
   successes.ranged += bonus.ranged;
   successes.mounted += bonus.mounted;
   wildcard += bonus.wildcard;
+
+  // Apply explicit human sacrifices before filling requirements
+  let sacrificed = 0;
+  if (humanSacrificed !== null) {
+    const standardBearer = hasSpecialist(player, 'Standard Bearer');
+    for (const type of ['melee', 'ranged', 'mounted']) {
+      for (const idx of humanSacrificed[type]) {
+        const roll = rolls[type]?.[idx];
+        if (roll === undefined) continue;
+        const isEligible = roll === 3 && !standardBearer;
+        if (isEligible) {
+          successes[type] += 1;
+          wounded[type] = Math.max(0, wounded[type] - 1);
+          dead[type] += 1;
+          sacrificed += 1;
+        }
+      }
+    }
+  }
 
   const assigned = emptyTroops();
   for (const type of ['melee', 'ranged', 'mounted']) {
@@ -738,7 +816,6 @@ function resolveContractBattle(game, player, contract, availableTroops) {
     req[type] -= use;
     successes[type] -= use;
   }
-
   for (const type of ['melee', 'ranged', 'mounted']) {
     if (req[type] === 0) continue;
     const use = Math.min(req[type], wildcard);
@@ -747,35 +824,28 @@ function resolveContractBattle(game, player, contract, availableTroops) {
     assigned[type] += use;
   }
 
-  // Kill non-contributing units to push across the line.
-  let sacrificed = 0;
-  for (const type of ['melee', 'ranged', 'mounted']) {
-    if (req[type] === 0) continue;
-    const killable = successes[type] + wounded[type];
-    const use = Math.min(req[type], killable);
-    req[type] -= use;
-    dead[type] += use;
-    sacrificed += use;
+  if (humanSacrificed === null) {
+    // Auto-sacrifice (AI path only)
+    for (const type of ['melee', 'ranged', 'mounted']) {
+      if (req[type] === 0) continue;
+      const killable = successes[type] + wounded[type];
+      const use = Math.min(req[type], killable);
+      req[type] -= use;
+      dead[type] += use;
+      sacrificed += use;
+    }
   }
 
   if ((dead.melee + dead.ranged + dead.mounted) > 0 && hasSpecialist(player, 'Surgeon')) {
     for (const type of ['melee', 'ranged', 'mounted']) {
-      if (dead[type] > 0) {
-        dead[type] -= 1;
-        wounded[type] += 1;
-        break;
-      }
+      if (dead[type] > 0) { dead[type] -= 1; wounded[type] += 1; break; }
     }
   }
 
   if ((dead.melee + dead.ranged + dead.mounted) > 0 && hasSpecialist(player, 'Grave Robber')) {
     const gain = gainEquipment(game, player, 1);
     player.money += 1;
-    if (gain > 0) {
-      addEffect(game, `${player.name}'s Grave Robber gained 1 coin and ${gain} equipment.`);
-    } else {
-      addEffect(game, `${player.name}'s Grave Robber gained 1 coin.`);
-    }
+    addEffect(game, `${player.name}'s Grave Robber gained 1 coin${gain > 0 ? ` and ${gain} equipment` : ''}.`);
   }
 
   if ((dead.melee + dead.ranged + dead.mounted) > 0 && hasSpecialist(player, 'Scavenger')) {
@@ -792,27 +862,22 @@ function resolveContractBattle(game, player, contract, availableTroops) {
       const card = drawFromDeck(game, 'contract');
       if (card) player.hand.push(card);
     }
-    if (draws > 0) {
-      addEffect(game, `${player.name}'s Chaplain drew ${draws} card(s) from sacrifice.`);
-    }
+    if (draws > 0) addEffect(game, `${player.name}'s Chaplain drew ${draws} card(s) from sacrifice.`);
   }
 
   const success = req.melee + req.ranged + req.mounted === 0;
-
-  // Apply losses and wound lockout for subsequent contracts in the same campaign.
   for (const type of ['melee', 'ranged', 'mounted']) {
     player.troops[type] -= dead[type];
     game.supply[type] += dead[type];
     availableTroops[type] = Math.max(0, availableTroops[type] - dead[type] - wounded[type]);
   }
 
-  return {
-    success,
-    dead,
-    wounded,
-    rolls,
-    assigned,
-  };
+  return { success, dead, wounded, rolls, assigned };
+}
+
+function resolveContractBattle(game, player, contract, availableTroops) {
+  const rolls = rollContractDice(availableTroops);
+  return finalizeContractBattle(game, player, contract, rolls, availableTroops);
 }
 
 function canPlayContracts(player, contracts, smugglerTargetId = null) {
@@ -834,7 +899,14 @@ function canPlayContracts(player, contracts, smugglerTargetId = null) {
 }
 
 function chooseAiContracts(player) {
-  const contracts = player.hand.filter((card) => card.kind === 'contract');
+  // Only consider contracts the player has the right troop types to attempt
+  const contracts = player.hand
+    .filter((card) => card.kind === 'contract')
+    .filter((card) =>
+      (card.requirements.melee === 0 || player.troops.melee > 0) &&
+      (card.requirements.ranged === 0 || player.troops.ranged > 0) &&
+      (card.requirements.mounted === 0 || player.troops.mounted > 0),
+    );
   contracts.sort((a, b) => (b.renown + b.coins) - (a.renown + a.coins));
 
   for (let size = Math.min(3, contracts.length); size >= 1; size -= 1) {
@@ -1086,6 +1158,7 @@ function drawCardToHand(game, player, source) {
     if (game.offer[kind].length === 0) return false;
 
     let card = game.offer[kind].shift();
+    if (!card) return false;
     if (kind === 'contract' && hasSpecialist(player, 'Agent') && game.offer[kind].length > 0) {
       let bestIndex = 0;
       let bestScore = card.renown * 2 + card.coins;
@@ -1127,16 +1200,22 @@ function refreshOffer(game) {
   if (contract) game.offer.contract.push(contract);
   const specialist = drawFromDeck(game, 'specialist');
   if (specialist) game.offer.specialist.push(specialist);
-  game.offer.event.push(drawFromDeck(game, 'event'));
+  game.offer.event = game.offer.event.filter(Boolean);
+  const eventCard = drawFromDeck(game, 'event');
+  if (eventCard) game.offer.event.push(eventCard);
 }
 
 function autoDrawForAi(game, player) {
   const bonus = player.eventInPlay?.ongoing?.endOfTurnDrawBonus || 0;
   const draws = 2 + bonus;
-  for (let i = 0; i < draws; i += 1) {
+
+  // Always draw at least one contract card
+  const contractSource = game.offer.contract.length > 0 ? 'offer:contract' : 'deck:contract';
+  drawCardToHand(game, player, contractSource);
+
+  for (let i = 1; i < draws; i += 1) {
     const sources = ['offer:contract', 'offer:specialist', 'offer:event', 'deck:contract'];
-    const source = sample(sources);
-    drawCardToHand(game, player, source);
+    drawCardToHand(game, player, sample(sources));
   }
 }
 
@@ -1314,8 +1393,14 @@ export function runAiTurn(game) {
 }
 
 export function runSimulation(game) {
-  while (!game.isFinished) {
+  let safety = 0;
+  while (!game.isFinished && safety < 2000) {
     runAiTurn(game);
+    safety += 1;
+  }
+  if (!game.isFinished) {
+    game.isFinished = true;
+    finishGame(game);
   }
 }
 
@@ -1438,6 +1523,13 @@ export function humanToggleContractSelection(game, contractId) {
   game.humanState.selectedContractIds = [...ids, contractId];
 }
 
+function beginMuster(game, player) {
+  setTurnPhase(game, 'Muster');
+  muster(game, player);
+  game.humanState.step = 'draw';
+  game.humanState.drawChoicesRemaining = 2;
+}
+
 export function humanRunCampaign(game) {
   setTurnPhase(game, 'Campaign');
   const player = getActivePlayer(game);
@@ -1446,14 +1538,134 @@ export function humanRunCampaign(game) {
 
   if (cards.length === 0) {
     addLog(game, `${player.name} skipped campaign.`);
-  } else {
-    runCampaign(game, player, cards);
+    beginMuster(game, player);
+    return;
   }
 
-  setTurnPhase(game, 'Muster');
-  muster(game, player);
-  game.humanState.step = 'draw';
-  game.humanState.drawChoicesRemaining = 2;
+  const eventCostDelta = player.eventInPlay?.ongoing?.campaignCostDelta || 0;
+  const specialistDiscount = countSpecialist(player, 'Forager') + (2 * countSpecialist(player, 'Cook'));
+  const discount = specialistDiscount - eventCostDelta;
+  const cost = contractCost(cards, discount);
+
+  if (!canAfford(player, cost)) {
+    addLog(game, `${player.name} could not afford campaign cost (${cost}).`);
+    beginMuster(game, player);
+    return;
+  }
+
+  const smugglerTarget = hasSpecialist(player, 'Smuggler') ? getSmugglerTarget(cards) : null;
+  const smugglerTargetId = smugglerTarget ? smugglerTarget.id : null;
+
+  if (!canPlayContracts(player, cards, smugglerTargetId)) {
+    addLog(game, `${player.name} did not meet eligibility for selected contracts.`);
+    beginMuster(game, player);
+    return;
+  }
+
+  player.money -= cost;
+  const availableTroops = cloneTroops(player.troops);
+  const battleQueue = [];
+
+  for (const contract of cards) {
+    if (smugglerTargetId && contract.id === smugglerTargetId) {
+      let rewardCoins = contract.coins + countSpecialist(player, 'Paymaster');
+      if (contract.type === 'hunt') rewardCoins += countSpecialist(player, 'Trophy Maker');
+      const eb = player.eventInPlay?.ongoing?.contractBonus;
+      if (eb && contract.type === eb.type) rewardCoins += eb.coins;
+      player.money += rewardCoins;
+      player.scorePile.push(contract);
+      applyContractCompletionEffect(game, player, contract);
+      addLog(game, `${player.name} smuggled ${contract.title} (${contract.renown} renown, ${rewardCoins} coins).`);
+      player.hand = player.hand.filter((c) => c.id !== contract.id);
+      continue;
+    }
+    if (contract.type === 'guard' && hasSpecialist(player, 'Disgraced Watchman')) {
+      addLog(game, `${player.name} cannot complete GUARD contracts (Disgraced Watchman).`);
+      player.hand = player.hand.filter((c) => c.id !== contract.id);
+      continue;
+    }
+    battleQueue.push(contract);
+  }
+
+  if (battleQueue.length === 0) {
+    beginMuster(game, player);
+    return;
+  }
+
+  game.humanState.pendingBattle = {
+    contractQueue: battleQueue.slice(1),
+    currentContract: battleQueue[0],
+    availableTroops,
+    rolls: rollContractDice(availableTroops),
+    sacrificed: { melee: [], ranged: [], mounted: [] },
+  };
+  game.humanState.step = 'battle';
+}
+
+export function humanRerollDie(game, type, index) {
+  const player = getActivePlayer(game);
+  if (game.humanState.step !== 'battle') return false;
+  if (player.equipment <= 0 || game.armoury <= 0) return false;
+  const pb = game.humanState.pendingBattle;
+  const rolls = pb.rolls;
+  if (!rolls[type] || index >= rolls[type].length) return false;
+  player.equipment -= 1;
+  game.armoury += 1;
+  rolls[type][index] = rand(1, 6);
+  // Clear sacrifice on the rerolled die
+  pb.sacrificed[type] = pb.sacrificed[type].filter((i) => i !== index);
+  addEffect(game, `${player.name} spent 1 equipment to reroll a ${type} die → ${rolls[type][index]}.`);
+  return true;
+}
+
+export function humanToggleSacrifice(game, type, index) {
+  const player = getActivePlayer(game);
+  if (game.humanState.step !== 'battle') return false;
+  const pb = game.humanState.pendingBattle;
+  const roll = pb.rolls[type]?.[index];
+  if (roll === undefined) return false;
+  const standardBearer = hasSpecialist(player, 'Standard Bearer');
+  const isEligible = roll === 3 && !standardBearer;
+  if (!isEligible) return false;
+  const sac = pb.sacrificed[type];
+  const pos = sac.indexOf(index);
+  if (pos === -1) sac.push(index);
+  else sac.splice(pos, 1);
+  return true;
+}
+
+export function humanConfirmBattle(game) {
+  setTurnPhase(game, 'Campaign');
+  const player = getActivePlayer(game);
+  const pb = game.humanState.pendingBattle;
+  const { currentContract, rolls, availableTroops } = pb;
+
+  const outcome = finalizeContractBattle(game, player, currentContract, rolls, availableTroops, pb.sacrificed);
+
+  if (outcome.success) {
+    let rewardCoins = currentContract.coins + countSpecialist(player, 'Paymaster');
+    if (currentContract.type === 'hunt') rewardCoins += countSpecialist(player, 'Trophy Maker');
+    const eb = player.eventInPlay?.ongoing?.contractBonus;
+    if (eb && currentContract.type === eb.type) rewardCoins += eb.coins;
+    player.money += rewardCoins;
+    player.scorePile.push(currentContract);
+    applyContractCompletionEffect(game, player, currentContract);
+    addLog(game, `${player.name} completed ${currentContract.type} (${currentContract.region}) for ${currentContract.renown} renown and ${rewardCoins} coins.`);
+  } else {
+    addLog(game, `${player.name} failed ${currentContract.type} (${currentContract.region}).`);
+  }
+
+  player.hand = player.hand.filter((c) => c.id !== currentContract.id);
+
+  const next = pb.contractQueue.shift();
+  if (next) {
+    pb.currentContract = next;
+    pb.rolls = rollContractDice(pb.availableTroops);
+    pb.sacrificed = { melee: [], ranged: [], mounted: [] };
+  } else {
+    game.humanState.pendingBattle = null;
+    beginMuster(game, player);
+  }
 }
 
 export function humanDrawCard(game, source) {
