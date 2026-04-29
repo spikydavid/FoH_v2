@@ -116,6 +116,16 @@ button:hover {
   color: #5f1f26;
 }
 
+.phase-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border: 1px solid #7b6a52;
+  border-radius: 999px;
+  background: #fff2dc;
+  font-size: 0.82rem;
+}
+
 .meta {
   font-size: 0.9rem;
   color: #4a3b2a;
@@ -188,6 +198,26 @@ ul {
   border-radius: 8px;
   padding: 8px;
   background: #fffbf3;
+}
+
+.effects-list {
+  max-height: 180px;
+  overflow-y: auto;
+  border: 1px solid #cab79d;
+  border-radius: 8px;
+  padding: 8px;
+  background: #fff7e8;
+}
+
+.effects-phase + .effects-phase {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px dashed #cab79d;
+}
+
+.effects-phase h4 {
+  margin: 0 0 6px;
+  color: #5f1f26;
 }
 
 @media (max-width: 860px) {

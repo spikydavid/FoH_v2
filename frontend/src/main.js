@@ -25,6 +25,32 @@ function contractText(card) {
   return `${card.title} (#${card.cardNumber}, ${card.tier}) ${card.type.toUpperCase()} [${card.region}] req M${card.requirements.melee}/R${card.requirements.ranged}/Mo${card.requirements.mounted} -> ${card.renown} renown, ${card.coins} coins`;
 }
 
+function renderTurnEffects() {
+  if (!game.turnEffects || game.turnEffects.length === 0) {
+    return '<div>No triggered effects yet this turn.</div>';
+  }
+
+  const phases = ['Event', 'Enlist', 'Market', 'Campaign', 'Muster', 'General'];
+  const grouped = {};
+  for (const effect of game.turnEffects) {
+    const phase = effect.phase || 'General';
+    if (!grouped[phase]) grouped[phase] = [];
+    grouped[phase].push(effect.text);
+  }
+
+  return phases
+    .filter((phase) => grouped[phase] && grouped[phase].length > 0)
+    .map(
+      (phase) => `
+        <div class="effects-phase">
+          <h4>${phase}</h4>
+          ${grouped[phase].map((line) => `<div>${line}</div>`).join('')}
+        </div>
+      `,
+    )
+    .join('');
+}
+
 function renderStartScreen() {
   app.innerHTML = `
     <main class="layout">
@@ -206,7 +232,7 @@ function renderGame() {
           <h2>${game.mode === 'simulation' ? 'Simulation Results' : 'Interactive Game'}</h2>
           <button id="reset">New Game</button>
         </div>
-        <p>Round ${game.round} | Active: ${active.name}${active.isHuman ? ' (Human)' : ' (AI)'}</p>
+        <p>Round ${game.round} | Active: ${active.name}${active.isHuman ? ' (Human)' : ' (AI)'} <span class="phase-badge">Current Phase: ${game.currentPhase || 'Event'}</span></p>
         <p class="meta">Contract data source: <a href="${CONTRACT_DATA_SYNC.sourceUrl}" target="_blank" rel="noreferrer">Google Sheet</a> | Last sync: ${CONTRACT_DATA_SYNC.syncedAt}</p>
         <p class="meta">Specialist data source: <a href="${SPECIALIST_DATA_SYNC.sourceUrl}" target="_blank" rel="noreferrer">Google Sheet</a> | Last sync: ${SPECIALIST_DATA_SYNC.syncedAt}</p>
         ${game.isFinished ? `<p class="winner">Winner: ${winner.player.name} (${winner.score.total} renown)</p>` : ''}
@@ -244,6 +270,13 @@ function renderGame() {
       </section>
 
       ${controls}
+
+      <section class="panel">
+        <h3>This Turn Effects</h3>
+        <div class="effects-list">
+          ${renderTurnEffects()}
+        </div>
+      </section>
 
       <section class="panel">
         <h3>Turn Log</h3>

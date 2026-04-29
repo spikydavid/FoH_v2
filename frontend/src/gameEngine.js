@@ -156,22 +156,22 @@ function removeSpecialistFromRetinue(player, specialistId) {
 function applySpecialistOnHire(game, player, card) {
   if (card.name === 'Blacksmith' || card.name === 'Carpenter') {
     const gained = gainEquipment(game, player, 2);
-    if (gained > 0) addLog(game, `${player.name} used ${card.name} and gained ${gained} equipment.`);
+    if (gained > 0) addEffect(game, `${player.name} used ${card.name} and gained ${gained} equipment.`);
   }
 
   if (card.name === 'Former Stablehand') {
     const recruited = recruitFromSupplyAtMarketCost(game, player, 'mounted', 2, 4);
-    if (recruited > 0) addLog(game, `${player.name} used Former Stablehand to recruit ${recruited} mounted from supply.`);
+    if (recruited > 0) addEffect(game, `${player.name} used Former Stablehand to recruit ${recruited} mounted from supply.`);
   }
 
   if (card.name === 'Dockside Thug') {
     const recruited = recruitFromSupplyAtMarketCost(game, player, 'melee', 2, 2);
-    if (recruited > 0) addLog(game, `${player.name} used Dockside Thug to recruit ${recruited} melee from supply.`);
+    if (recruited > 0) addEffect(game, `${player.name} used Dockside Thug to recruit ${recruited} melee from supply.`);
   }
 
   if (card.name === 'Roadside Ruffian') {
     const recruited = recruitFromSupplyAtMarketCost(game, player, 'ranged', 2, 3);
-    if (recruited > 0) addLog(game, `${player.name} used Roadside Ruffian to recruit ${recruited} ranged from supply.`);
+    if (recruited > 0) addEffect(game, `${player.name} used Roadside Ruffian to recruit ${recruited} ranged from supply.`);
   }
 
   if (card.name === 'Negotiator') {
@@ -184,7 +184,7 @@ function applySpecialistOnHire(game, player, card) {
         player.hand = player.hand.filter((c) => c.id !== removeId);
       }
       player.hand.push(replacement);
-      addLog(game, `${player.name} used Negotiator to find a stronger contract.`);
+      addEffect(game, `${player.name} used Negotiator to find a stronger contract.`);
     }
   }
 
@@ -193,7 +193,7 @@ function applySpecialistOnHire(game, player, card) {
       player.equipment -= 1;
       game.armoury += 1;
       player.money += 5;
-      addLog(game, `${player.name} used Fence: traded 1 equipment for 5 coins.`);
+      addEffect(game, `${player.name} used Fence: traded 1 equipment for 5 coins.`);
     }
   }
 
@@ -201,7 +201,7 @@ function applySpecialistOnHire(game, player, card) {
     const eventCard = drawFromDeck(game, 'event');
     if (eventCard) {
       player.hand.push(eventCard);
-      addLog(game, `${player.name} used Informer to gain an event card.`);
+      addEffect(game, `${player.name} used Informer to gain an event card.`);
     }
   }
 
@@ -209,7 +209,7 @@ function applySpecialistOnHire(game, player, card) {
     const found = findBestContractByType(game, 'devastate');
     if (found) {
       player.hand.push(found);
-      addLog(game, `${player.name} used Spy to find a DEVASTATE contract.`);
+      addEffect(game, `${player.name} used Spy to find a DEVASTATE contract.`);
     }
   }
 
@@ -217,13 +217,13 @@ function applySpecialistOnHire(game, player, card) {
     const found = findBestContractByType(game, 'supply');
     if (found) {
       player.hand.push(found);
-      addLog(game, `${player.name} used Trader to find a SUPPLY contract.`);
+      addEffect(game, `${player.name} used Trader to find a SUPPLY contract.`);
     }
   }
 
   if (card.condition === 'Discard') {
     removeSpecialistFromRetinue(player, card.id);
-    addLog(game, `${player.name} discarded ${card.name} after use.`);
+    addEffect(game, `${player.name} discarded ${card.name} after use.`);
   }
 }
 
@@ -357,6 +357,28 @@ function addLog(game, text) {
   }
 }
 
+function addTurnEffect(game, text) {
+  game.turnEffects.unshift(text);
+  if (game.turnEffects.length > 20) {
+    game.turnEffects.pop();
+  }
+}
+
+function addEffect(game, phaseOrText, maybeText) {
+  const phase = maybeText ? phaseOrText : (game.currentPhase || 'General');
+  const text = maybeText || phaseOrText;
+  addLog(game, text);
+  addTurnEffect(game, { phase, text });
+}
+
+function resetTurnEffects(game) {
+  game.turnEffects = [];
+}
+
+function setTurnPhase(game, phase) {
+  game.currentPhase = phase;
+}
+
 function createInitialGame(config) {
   const players = [];
   for (let i = 0; i < config.playerCount; i += 1) {
@@ -367,6 +389,7 @@ function createInitialGame(config) {
     mode: config.mode,
     phase: 'setup',
     round: 1,
+    currentPhase: 'Event',
     currentPlayerIndex: 0,
     startedFinalRound: false,
     finalRoundIndex: null,
@@ -385,6 +408,7 @@ function createInitialGame(config) {
       event: [],
     },
     log: [],
+    turnEffects: [],
     humanState: {
       needsInput: false,
       step: null,
@@ -443,16 +467,16 @@ function applyEventOnPlay(game, player, eventCard) {
 
   if (eventCard.effect === 'gainMoney') {
     player.money += eventCard.value;
-    addLog(game, `${player.name} played ${eventCard.name} and gained ${eventCard.value} coins.`);
+    addEffect(game, `${player.name} played ${eventCard.name} and gained ${eventCard.value} coins.`);
   }
 
   if (eventCard.effect === 'gainEquipment') {
     const gain = gainEquipment(game, player, eventCard.value);
-    addLog(game, `${player.name} played ${eventCard.name} and gained ${gain} equipment.`);
+    addEffect(game, `${player.name} played ${eventCard.name} and gained ${gain} equipment.`);
   }
 
   if (eventCard.effect === 'campaignDiscount') {
-    addLog(game, `${player.name} played ${eventCard.name}. Their campaign cost is reduced this turn.`);
+    addEffect(game, `${player.name} played ${eventCard.name}. Their campaign cost is reduced this turn.`);
   }
 }
 
@@ -542,9 +566,9 @@ function resolveContractBattle(game, player, contract, availableTroops) {
     const gain = gainEquipment(game, player, 1);
     player.money += 1;
     if (gain > 0) {
-      addLog(game, `${player.name}'s Grave Robber gained 1 coin and ${gain} equipment.`);
+      addEffect(game, `${player.name}'s Grave Robber gained 1 coin and ${gain} equipment.`);
     } else {
-      addLog(game, `${player.name}'s Grave Robber gained 1 coin.`);
+      addEffect(game, `${player.name}'s Grave Robber gained 1 coin.`);
     }
   }
 
@@ -552,7 +576,7 @@ function resolveContractBattle(game, player, contract, availableTroops) {
     const ones = countFace(rolls, 1);
     if (ones > 0) {
       player.money += ones;
-      addLog(game, `${player.name}'s Scavenger gained ${ones} coins from losses.`);
+      addEffect(game, `${player.name}'s Scavenger gained ${ones} coins from losses.`);
     }
   }
 
@@ -563,7 +587,7 @@ function resolveContractBattle(game, player, contract, availableTroops) {
       if (card) player.hand.push(card);
     }
     if (draws > 0) {
-      addLog(game, `${player.name}'s Chaplain drew ${draws} card(s) from sacrifice.`);
+      addEffect(game, `${player.name}'s Chaplain drew ${draws} card(s) from sacrifice.`);
     }
   }
 
@@ -642,7 +666,7 @@ function runCampaign(game, player, selectedContracts) {
   }
 
   if (smugglerTarget) {
-    addLog(game, `${player.name} used Smuggler to ignore requirements for ${smugglerTarget.title}.`);
+    addEffect(game, `${player.name} used Smuggler to ignore requirements for ${smugglerTarget.title}.`);
   }
 
   player.money -= cost;
@@ -786,19 +810,7 @@ function playAiMarket(game, player) {
       player.retinue.push(card);
       player.hand = player.hand.filter((c) => c.id !== card.id);
       addLog(game, `${player.name} hired specialist ${card.name}.`);
-
-      if (card.name === 'Blacksmith' || card.name === 'Carpenter') {
-        gainEquipment(game, player, 2);
-      }
-      if (card.name === 'Former Stablehand') {
-        recruitFromSupplyAtMarketCost(game, player, 'mounted', 2, 4);
-      }
-      if (card.name === 'Dockside Thug') {
-        recruitFromSupplyAtMarketCost(game, player, 'melee', 2, 2);
-      }
-      if (card.name === 'Roadside Ruffian') {
-        recruitFromSupplyAtMarketCost(game, player, 'ranged', 2, 3);
-      }
+      applySpecialistOnHire(game, player, card);
     }
   }
 
@@ -922,6 +934,8 @@ export function runAiTurn(game) {
   if (game.isFinished) return;
 
   const player = getActivePlayer(game);
+  resetTurnEffects(game);
+  setTurnPhase(game, 'Event');
 
   if (player.eventInPlay) {
     player.eventInPlay = null;
@@ -933,12 +947,17 @@ export function runAiTurn(game) {
     applyEventOnPlay(game, player, eventFromHand);
   }
 
+  setTurnPhase(game, 'Enlist');
   enlist(game);
+
+  setTurnPhase(game, 'Market');
   playAiMarket(game, player);
 
+  setTurnPhase(game, 'Campaign');
   const chosen = chooseAiContracts(player);
   runCampaign(game, player, chosen);
 
+  setTurnPhase(game, 'Muster');
   muster(game, player);
   autoDrawForAi(game, player);
   refreshOffer(game);
@@ -957,6 +976,8 @@ export function runSimulation(game) {
 
 export function beginInteractiveTurn(game) {
   const player = getActivePlayer(game);
+  resetTurnEffects(game);
+  setTurnPhase(game, 'Event');
 
   if (!player.isHuman) {
     runAiTurn(game);
@@ -973,7 +994,9 @@ export function beginInteractiveTurn(game) {
     applyEventOnPlay(game, player, eventFromHand);
   }
 
+  setTurnPhase(game, 'Enlist');
   enlist(game);
+  setTurnPhase(game, 'Market');
   game.humanState = {
     needsInput: true,
     step: 'market',
@@ -983,6 +1006,7 @@ export function beginInteractiveTurn(game) {
 }
 
 export function humanTakeLoan(game) {
+  setTurnPhase(game, 'Market');
   const player = getActivePlayer(game);
   if (!mayTakeLoan(player)) return false;
   player.money += 10;
@@ -992,6 +1016,7 @@ export function humanTakeLoan(game) {
 }
 
 export function humanBuyTroop(game, from, type) {
+  setTurnPhase(game, 'Market');
   const player = getActivePlayer(game);
   const marketCosts = { melee: 2, ranged: 3, mounted: 4 };
   const supplyCosts = { melee: 4, ranged: 6, mounted: 8 };
@@ -1013,6 +1038,7 @@ export function humanBuyTroop(game, from, type) {
 }
 
 export function humanBuyEquipment(game) {
+  setTurnPhase(game, 'Market');
   const player = getActivePlayer(game);
   if (!canAfford(player, 1) || game.armoury <= 0) return false;
   player.money -= 1;
@@ -1021,6 +1047,7 @@ export function humanBuyEquipment(game) {
 }
 
 export function humanHireSpecialist(game, cardId) {
+  setTurnPhase(game, 'Market');
   const player = getActivePlayer(game);
   if (player.retinue.length >= 3) return false;
 
@@ -1031,45 +1058,13 @@ export function humanHireSpecialist(game, cardId) {
   player.money -= card.cost;
   player.retinue.push(card);
   player.hand = player.hand.filter((c) => c.id !== card.id);
-
-  if (card.name === 'Blacksmith' || card.name === 'Carpenter') {
-    const gained = gainEquipment(game, player, 2);
-    addLog(game, `${player.name} used ${card.name} and gained ${gained} equipment.`);
-  }
-
-  if (card.name === 'Former Stablehand') {
-    const recruited = recruitFromSupplyAtMarketCost(game, player, 'mounted', 2, 4);
-    if (recruited > 0) addLog(game, `${player.name} used Former Stablehand to recruit ${recruited} mounted from supply.`);
-  }
-
-  if (card.name === 'Dockside Thug') {
-    const recruited = recruitFromSupplyAtMarketCost(game, player, 'melee', 2, 2);
-    if (recruited > 0) addLog(game, `${player.name} used Dockside Thug to recruit ${recruited} melee from supply.`);
-  }
-
-  if (card.name === 'Roadside Ruffian') {
-    const recruited = recruitFromSupplyAtMarketCost(game, player, 'ranged', 2, 3);
-    if (recruited > 0) addLog(game, `${player.name} used Roadside Ruffian to recruit ${recruited} ranged from supply.`);
-  }
-
-  if (card.name === 'Negotiator') {
-    const replacement = drawBestContractFromTopN(game, 5);
-    if (replacement) {
-      const contracts = player.hand.filter((c) => c.kind === 'contract');
-      if (contracts.length > 0) {
-        contracts.sort((a, b) => (a.renown + a.coins) - (b.renown + b.coins));
-        const removeId = contracts[0].id;
-        player.hand = player.hand.filter((c) => c.id !== removeId);
-      }
-      player.hand.push(replacement);
-      addLog(game, `${player.name} used Negotiator to find a stronger contract.`);
-    }
-  }
+  applySpecialistOnHire(game, player, card);
 
   return true;
 }
 
 export function humanDischargeSpecialist(game, specialistId) {
+  setTurnPhase(game, 'Market');
   const player = getActivePlayer(game);
   const exists = player.retinue.some((s) => s.id === specialistId);
   if (!exists) return false;
@@ -1078,6 +1073,7 @@ export function humanDischargeSpecialist(game, specialistId) {
 }
 
 export function humanProceedToCampaign(game) {
+  setTurnPhase(game, 'Campaign');
   game.humanState.step = 'campaign';
   game.humanState.selectedContractIds = [];
 }
@@ -1098,6 +1094,7 @@ export function humanToggleContractSelection(game, contractId) {
 }
 
 export function humanRunCampaign(game) {
+  setTurnPhase(game, 'Campaign');
   const player = getActivePlayer(game);
   const ids = game.humanState.selectedContractIds;
   const cards = player.hand.filter((card) => ids.includes(card.id) && card.kind === 'contract');
@@ -1108,12 +1105,14 @@ export function humanRunCampaign(game) {
     runCampaign(game, player, cards);
   }
 
+  setTurnPhase(game, 'Muster');
   muster(game, player);
   game.humanState.step = 'draw';
   game.humanState.drawChoicesRemaining = 2;
 }
 
 export function humanDrawCard(game, source) {
+  setTurnPhase(game, 'Muster');
   const player = getActivePlayer(game);
   if (game.humanState.step !== 'draw') return false;
 
