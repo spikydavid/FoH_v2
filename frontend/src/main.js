@@ -22,7 +22,8 @@ const app = document.querySelector('#app');
 let game = null;
 
 function contractText(card) {
-  return `${card.title} (#${card.cardNumber}, ${card.tier}) ${card.type.toUpperCase()} [${card.region}] req M${card.requirements.melee}/R${card.requirements.ranged}/Mo${card.requirements.mounted} -> ${card.renown} renown, ${card.coins} coins`;
+  const reward = card.tier === 'R' && card.completionEffect ? ` | Reward: ${card.completionEffect.replace(/\*\*/g, '')}` : '';
+  return `${card.title} (#${card.cardNumber}, ${card.tier}) ${card.type.toUpperCase()} [${card.region}] req M${card.requirements.melee}/R${card.requirements.ranged}/Mo${card.requirements.mounted} -> ${card.renown} renown, ${card.coins} coins${reward}`;
 }
 
 function renderTurnEffects() {
@@ -107,6 +108,7 @@ function renderLeaderboard() {
         <td>-${score.debtPenalty}</td>
         <td>${score.contracts}</td>
         <td>${score.money}</td>
+        <td>${player.rewardsTriggered}</td>
       </tr>
     `,
     )
@@ -123,6 +125,7 @@ function renderLeaderboard() {
           <th>Debt</th>
           <th>Done</th>
           <th>Coins</th>
+          <th>Rewards</th>
         </tr>
       </thead>
       <tbody>${rows}</tbody>
@@ -242,7 +245,7 @@ function renderGame() {
       <section class="panel cols">
         <div>
           <h3>Active Player State</h3>
-          <p>Coins: ${active.money} | Debt: ${active.debts} | Equipment: ${active.equipment}</p>
+          <p>Coins: ${active.money} | Debt: ${active.debts} | Equipment: ${active.equipment} | Elite: ${active.elite}</p>
           <p>Troops: M${active.troops.melee} / R${active.troops.ranged} / Mo${active.troops.mounted}</p>
           <p>Retinue: ${active.retinue.map((s) => s.name).join(', ') || 'None'}</p>
           <p>Event in play: ${active.eventInPlay?.name || 'None'}</p>
@@ -256,7 +259,7 @@ function renderGame() {
           <h3>Shared Pools</h3>
           <p>Market: M${game.market.melee} / R${game.market.ranged} / Mo${game.market.mounted}</p>
           <p>Bag: M${game.bag.melee} / R${game.bag.ranged} / Mo${game.bag.mounted}</p>
-          <p>Supply: M${game.supply.melee} / R${game.supply.ranged} / Mo${game.supply.mounted}</p>
+          <p>Supply: M${game.supply.melee} / R${game.supply.ranged} / Mo${game.supply.mounted} / E${game.supply.elite}</p>
           <p>Armoury tokens: ${game.armoury}</p>
           <p>Contracts left in deck: ${game.contractDeck.length}</p>
           <p>Specialists left in deck: ${game.specialistDeck.length}</p>

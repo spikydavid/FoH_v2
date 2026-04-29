@@ -1,7 +1,7 @@
 export const CONTRACT_DATA_SYNC = {
-  spreadsheetId: '1Mo52GlsrZw_lcsGFZd_zgnfPIYIMubQb_vikZshtcjE',
-  sourceUrl: 'https://docs.google.com/spreadsheets/d/1Mo52GlsrZw_lcsGFZd_zgnfPIYIMubQb_vikZshtcjE/',
-  syncedAt: '2026-04-29',
+  "spreadsheetId": "1Mo52GlsrZw_lcsGFZd_zgnfPIYIMubQb_vikZshtcjE",
+  "sourceUrl": "https://docs.google.com/spreadsheets/d/1Mo52GlsrZw_lcsGFZd_zgnfPIYIMubQb_vikZshtcjE/",
+  "syncedAt": "2026-04-29"
 };
 
 export const CONTRACT_CARDS = [
@@ -18,7 +18,8 @@ export const CONTRACT_CARDS = [
       "ranged": 1,
       "mounted": 1
     },
-    "tier": "A"
+    "tier": "A",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 2,
@@ -33,7 +34,8 @@ export const CONTRACT_CARDS = [
       "ranged": 0,
       "mounted": 1
     },
-    "tier": "A"
+    "tier": "A",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 2,
@@ -48,7 +50,8 @@ export const CONTRACT_CARDS = [
       "ranged": 0,
       "mounted": 0
     },
-    "tier": "A"
+    "tier": "A",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 2,
@@ -63,7 +66,8 @@ export const CONTRACT_CARDS = [
       "ranged": 0,
       "mounted": 1
     },
-    "tier": "A"
+    "tier": "A",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 2,
@@ -78,7 +82,8 @@ export const CONTRACT_CARDS = [
       "ranged": 1,
       "mounted": 0
     },
-    "tier": "A"
+    "tier": "A",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 2,
@@ -93,7 +98,8 @@ export const CONTRACT_CARDS = [
       "ranged": 0,
       "mounted": 0
     },
-    "tier": "A"
+    "tier": "A",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 2,
@@ -108,7 +114,8 @@ export const CONTRACT_CARDS = [
       "ranged": 1,
       "mounted": 0
     },
-    "tier": "A"
+    "tier": "A",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 2,
@@ -123,7 +130,8 @@ export const CONTRACT_CARDS = [
       "ranged": 0,
       "mounted": 0
     },
-    "tier": "A"
+    "tier": "A",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 2,
@@ -138,7 +146,8 @@ export const CONTRACT_CARDS = [
       "ranged": 0,
       "mounted": 1
     },
-    "tier": "A"
+    "tier": "A",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 2,
@@ -153,7 +162,8 @@ export const CONTRACT_CARDS = [
       "ranged": 1,
       "mounted": 0
     },
-    "tier": "A"
+    "tier": "A",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 2,
@@ -168,7 +178,8 @@ export const CONTRACT_CARDS = [
       "ranged": 0,
       "mounted": 0
     },
-    "tier": "A"
+    "tier": "A",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 2,
@@ -183,7 +194,8 @@ export const CONTRACT_CARDS = [
       "ranged": 0,
       "mounted": 1
     },
-    "tier": "A"
+    "tier": "A",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 2,
@@ -198,7 +210,8 @@ export const CONTRACT_CARDS = [
       "ranged": 2,
       "mounted": 0
     },
-    "tier": "A"
+    "tier": "A",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 2,
@@ -213,7 +226,8 @@ export const CONTRACT_CARDS = [
       "ranged": 2,
       "mounted": 0
     },
-    "tier": "A"
+    "tier": "A",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 2,
@@ -228,7 +242,8 @@ export const CONTRACT_CARDS = [
       "ranged": 1,
       "mounted": 0
     },
-    "tier": "A"
+    "tier": "A",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 2,
@@ -243,7 +258,8 @@ export const CONTRACT_CARDS = [
       "ranged": 0,
       "mounted": 2
     },
-    "tier": "A"
+    "tier": "A",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 2,
@@ -258,7 +274,8 @@ export const CONTRACT_CARDS = [
       "ranged": 0,
       "mounted": 1
     },
-    "tier": "A"
+    "tier": "A",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 2,
@@ -273,7 +290,8 @@ export const CONTRACT_CARDS = [
       "ranged": 0,
       "mounted": 1
     },
-    "tier": "A"
+    "tier": "A",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 2,
@@ -288,7 +306,8 @@ export const CONTRACT_CARDS = [
       "ranged": 0,
       "mounted": 1
     },
-    "tier": "A"
+    "tier": "A",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 2,
@@ -303,7 +322,8 @@ export const CONTRACT_CARDS = [
       "ranged": 0,
       "mounted": 1
     },
-    "tier": "A"
+    "tier": "A",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 2,
@@ -318,7 +338,8 @@ export const CONTRACT_CARDS = [
       "ranged": 2,
       "mounted": 0
     },
-    "tier": "A"
+    "tier": "A",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 2,
@@ -333,7 +354,8 @@ export const CONTRACT_CARDS = [
       "ranged": 2,
       "mounted": 0
     },
-    "tier": "A"
+    "tier": "A",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 2,
@@ -348,7 +370,8 @@ export const CONTRACT_CARDS = [
       "ranged": 0,
       "mounted": 1
     },
-    "tier": "A"
+    "tier": "A",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 2,
@@ -363,7 +386,8 @@ export const CONTRACT_CARDS = [
       "ranged": 0,
       "mounted": 0
     },
-    "tier": "A"
+    "tier": "A",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 2,
@@ -378,7 +402,8 @@ export const CONTRACT_CARDS = [
       "ranged": 2,
       "mounted": 2
     },
-    "tier": "B"
+    "tier": "B",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 2,
@@ -393,7 +418,8 @@ export const CONTRACT_CARDS = [
       "ranged": 1,
       "mounted": 3
     },
-    "tier": "B"
+    "tier": "B",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 2,
@@ -408,7 +434,8 @@ export const CONTRACT_CARDS = [
       "ranged": 3,
       "mounted": 1
     },
-    "tier": "B"
+    "tier": "B",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 2,
@@ -423,7 +450,8 @@ export const CONTRACT_CARDS = [
       "ranged": 1,
       "mounted": 2
     },
-    "tier": "B"
+    "tier": "B",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 2,
@@ -438,7 +466,8 @@ export const CONTRACT_CARDS = [
       "ranged": 1,
       "mounted": 1
     },
-    "tier": "B"
+    "tier": "B",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 2,
@@ -453,7 +482,8 @@ export const CONTRACT_CARDS = [
       "ranged": 3,
       "mounted": 2
     },
-    "tier": "B"
+    "tier": "B",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 2,
@@ -468,7 +498,8 @@ export const CONTRACT_CARDS = [
       "ranged": 2,
       "mounted": 1
     },
-    "tier": "B"
+    "tier": "B",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 2,
@@ -483,7 +514,8 @@ export const CONTRACT_CARDS = [
       "ranged": 0,
       "mounted": 3
     },
-    "tier": "B"
+    "tier": "B",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 2,
@@ -498,7 +530,8 @@ export const CONTRACT_CARDS = [
       "ranged": 4,
       "mounted": 0
     },
-    "tier": "B"
+    "tier": "B",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 2,
@@ -513,7 +546,8 @@ export const CONTRACT_CARDS = [
       "ranged": 4,
       "mounted": 2
     },
-    "tier": "B"
+    "tier": "B",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 2,
@@ -528,7 +562,8 @@ export const CONTRACT_CARDS = [
       "ranged": 4,
       "mounted": 0
     },
-    "tier": "B"
+    "tier": "B",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 2,
@@ -543,7 +578,8 @@ export const CONTRACT_CARDS = [
       "ranged": 3,
       "mounted": 0
     },
-    "tier": "B"
+    "tier": "B",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 2,
@@ -558,7 +594,8 @@ export const CONTRACT_CARDS = [
       "ranged": 3,
       "mounted": 3
     },
-    "tier": "B"
+    "tier": "B",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 2,
@@ -573,7 +610,8 @@ export const CONTRACT_CARDS = [
       "ranged": 3,
       "mounted": 3
     },
-    "tier": "B"
+    "tier": "B",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 2,
@@ -588,7 +626,8 @@ export const CONTRACT_CARDS = [
       "ranged": 2,
       "mounted": 2
     },
-    "tier": "B"
+    "tier": "B",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 2,
@@ -603,7 +642,8 @@ export const CONTRACT_CARDS = [
       "ranged": 4,
       "mounted": 1
     },
-    "tier": "B"
+    "tier": "B",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 2,
@@ -618,7 +658,8 @@ export const CONTRACT_CARDS = [
       "ranged": 0,
       "mounted": 4
     },
-    "tier": "B"
+    "tier": "B",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 2,
@@ -633,7 +674,8 @@ export const CONTRACT_CARDS = [
       "ranged": 2,
       "mounted": 3
     },
-    "tier": "B"
+    "tier": "B",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 2,
@@ -648,7 +690,8 @@ export const CONTRACT_CARDS = [
       "ranged": 1,
       "mounted": 3
     },
-    "tier": "B"
+    "tier": "B",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 2,
@@ -663,7 +706,8 @@ export const CONTRACT_CARDS = [
       "ranged": 3,
       "mounted": 1
     },
-    "tier": "B"
+    "tier": "B",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 2,
@@ -678,7 +722,8 @@ export const CONTRACT_CARDS = [
       "ranged": 3,
       "mounted": 3
     },
-    "tier": "B"
+    "tier": "B",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 2,
@@ -693,7 +738,8 @@ export const CONTRACT_CARDS = [
       "ranged": 1,
       "mounted": 3
     },
-    "tier": "B"
+    "tier": "B",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 2,
@@ -708,7 +754,8 @@ export const CONTRACT_CARDS = [
       "ranged": 2,
       "mounted": 0
     },
-    "tier": "B"
+    "tier": "B",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 2,
@@ -723,7 +770,8 @@ export const CONTRACT_CARDS = [
       "ranged": 2,
       "mounted": 3
     },
-    "tier": "B"
+    "tier": "B",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 1,
@@ -738,7 +786,8 @@ export const CONTRACT_CARDS = [
       "ranged": 2,
       "mounted": 2
     },
-    "tier": "C"
+    "tier": "C",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 1,
@@ -753,7 +802,8 @@ export const CONTRACT_CARDS = [
       "ranged": 4,
       "mounted": 3
     },
-    "tier": "C"
+    "tier": "C",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 1,
@@ -768,7 +818,8 @@ export const CONTRACT_CARDS = [
       "ranged": 4,
       "mounted": 5
     },
-    "tier": "C"
+    "tier": "C",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 1,
@@ -783,7 +834,8 @@ export const CONTRACT_CARDS = [
       "ranged": 5,
       "mounted": 3
     },
-    "tier": "C"
+    "tier": "C",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 1,
@@ -798,7 +850,8 @@ export const CONTRACT_CARDS = [
       "ranged": 6,
       "mounted": 4
     },
-    "tier": "C"
+    "tier": "C",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 1,
@@ -813,7 +866,8 @@ export const CONTRACT_CARDS = [
       "ranged": 7,
       "mounted": 4
     },
-    "tier": "C"
+    "tier": "C",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 1,
@@ -828,7 +882,8 @@ export const CONTRACT_CARDS = [
       "ranged": 4,
       "mounted": 2
     },
-    "tier": "C"
+    "tier": "C",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 1,
@@ -843,7 +898,8 @@ export const CONTRACT_CARDS = [
       "ranged": 6,
       "mounted": 2
     },
-    "tier": "C"
+    "tier": "C",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 1,
@@ -858,7 +914,8 @@ export const CONTRACT_CARDS = [
       "ranged": 3,
       "mounted": 4
     },
-    "tier": "C"
+    "tier": "C",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 1,
@@ -873,7 +930,8 @@ export const CONTRACT_CARDS = [
       "ranged": 0,
       "mounted": 4
     },
-    "tier": "C"
+    "tier": "C",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 1,
@@ -888,7 +946,8 @@ export const CONTRACT_CARDS = [
       "ranged": 4,
       "mounted": 4
     },
-    "tier": "C"
+    "tier": "C",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 1,
@@ -903,7 +962,8 @@ export const CONTRACT_CARDS = [
       "ranged": 4,
       "mounted": 0
     },
-    "tier": "C"
+    "tier": "C",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 1,
@@ -918,7 +978,8 @@ export const CONTRACT_CARDS = [
       "ranged": 3,
       "mounted": 6
     },
-    "tier": "C"
+    "tier": "C",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 1,
@@ -933,7 +994,8 @@ export const CONTRACT_CARDS = [
       "ranged": 6,
       "mounted": 4
     },
-    "tier": "C"
+    "tier": "C",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 1,
@@ -948,7 +1010,8 @@ export const CONTRACT_CARDS = [
       "ranged": 6,
       "mounted": 2
     },
-    "tier": "C"
+    "tier": "C",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 1,
@@ -963,7 +1026,8 @@ export const CONTRACT_CARDS = [
       "ranged": 8,
       "mounted": 0
     },
-    "tier": "C"
+    "tier": "C",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 1,
@@ -978,7 +1042,8 @@ export const CONTRACT_CARDS = [
       "ranged": 2,
       "mounted": 3
     },
-    "tier": "C"
+    "tier": "C",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 1,
@@ -993,7 +1058,8 @@ export const CONTRACT_CARDS = [
       "ranged": 4,
       "mounted": 3
     },
-    "tier": "C"
+    "tier": "C",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 1,
@@ -1008,7 +1074,8 @@ export const CONTRACT_CARDS = [
       "ranged": 4,
       "mounted": 0
     },
-    "tier": "C"
+    "tier": "C",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 1,
@@ -1023,7 +1090,8 @@ export const CONTRACT_CARDS = [
       "ranged": 6,
       "mounted": 5
     },
-    "tier": "C"
+    "tier": "C",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 1,
@@ -1038,7 +1106,8 @@ export const CONTRACT_CARDS = [
       "ranged": 6,
       "mounted": 0
     },
-    "tier": "C"
+    "tier": "C",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 1,
@@ -1053,7 +1122,8 @@ export const CONTRACT_CARDS = [
       "ranged": 3,
       "mounted": 2
     },
-    "tier": "C"
+    "tier": "C",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 1,
@@ -1068,7 +1138,8 @@ export const CONTRACT_CARDS = [
       "ranged": 5,
       "mounted": 3
     },
-    "tier": "C"
+    "tier": "C",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 1,
@@ -1083,7 +1154,8 @@ export const CONTRACT_CARDS = [
       "ranged": 4,
       "mounted": 5
     },
-    "tier": "C"
+    "tier": "C",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 1,
@@ -1098,7 +1170,8 @@ export const CONTRACT_CARDS = [
       "ranged": 5,
       "mounted": 3
     },
-    "tier": "C"
+    "tier": "C",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 1,
@@ -1113,7 +1186,8 @@ export const CONTRACT_CARDS = [
       "ranged": 6,
       "mounted": 4
     },
-    "tier": "C"
+    "tier": "C",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 1,
@@ -1128,7 +1202,8 @@ export const CONTRACT_CARDS = [
       "ranged": 7,
       "mounted": 4
     },
-    "tier": "C"
+    "tier": "C",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 1,
@@ -1143,7 +1218,8 @@ export const CONTRACT_CARDS = [
       "ranged": 4,
       "mounted": 2
     },
-    "tier": "C"
+    "tier": "C",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 1,
@@ -1158,7 +1234,8 @@ export const CONTRACT_CARDS = [
       "ranged": 6,
       "mounted": 2
     },
-    "tier": "C"
+    "tier": "C",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 1,
@@ -1173,7 +1250,8 @@ export const CONTRACT_CARDS = [
       "ranged": 3,
       "mounted": 4
     },
-    "tier": "C"
+    "tier": "C",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 1,
@@ -1188,7 +1266,8 @@ export const CONTRACT_CARDS = [
       "ranged": 0,
       "mounted": 4
     },
-    "tier": "C"
+    "tier": "C",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 1,
@@ -1203,7 +1282,8 @@ export const CONTRACT_CARDS = [
       "ranged": 4,
       "mounted": 4
     },
-    "tier": "C"
+    "tier": "C",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 1,
@@ -1218,7 +1298,8 @@ export const CONTRACT_CARDS = [
       "ranged": 4,
       "mounted": 0
     },
-    "tier": "C"
+    "tier": "C",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 1,
@@ -1233,7 +1314,8 @@ export const CONTRACT_CARDS = [
       "ranged": 0,
       "mounted": 6
     },
-    "tier": "C"
+    "tier": "C",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 1,
@@ -1248,7 +1330,8 @@ export const CONTRACT_CARDS = [
       "ranged": 6,
       "mounted": 4
     },
-    "tier": "C"
+    "tier": "C",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 1,
@@ -1263,7 +1346,8 @@ export const CONTRACT_CARDS = [
       "ranged": 6,
       "mounted": 2
     },
-    "tier": "C"
+    "tier": "C",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 1,
@@ -1278,7 +1362,8 @@ export const CONTRACT_CARDS = [
       "ranged": 8,
       "mounted": 0
     },
-    "tier": "C"
+    "tier": "C",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 1,
@@ -1293,7 +1378,8 @@ export const CONTRACT_CARDS = [
       "ranged": 2,
       "mounted": 3
     },
-    "tier": "C"
+    "tier": "C",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 1,
@@ -1308,7 +1394,8 @@ export const CONTRACT_CARDS = [
       "ranged": 4,
       "mounted": 3
     },
-    "tier": "C"
+    "tier": "C",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 1,
@@ -1323,7 +1410,8 @@ export const CONTRACT_CARDS = [
       "ranged": 4,
       "mounted": 0
     },
-    "tier": "C"
+    "tier": "C",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 1,
@@ -1338,7 +1426,8 @@ export const CONTRACT_CARDS = [
       "ranged": 6,
       "mounted": 5
     },
-    "tier": "C"
+    "tier": "C",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 1,
@@ -1353,7 +1442,8 @@ export const CONTRACT_CARDS = [
       "ranged": 6,
       "mounted": 0
     },
-    "tier": "C"
+    "tier": "C",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 1,
@@ -1368,7 +1458,8 @@ export const CONTRACT_CARDS = [
       "ranged": 5,
       "mounted": 3
     },
-    "tier": "C"
+    "tier": "C",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 1,
@@ -1383,7 +1474,8 @@ export const CONTRACT_CARDS = [
       "ranged": 7,
       "mounted": 3
     },
-    "tier": "C"
+    "tier": "C",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 1,
@@ -1398,7 +1490,8 @@ export const CONTRACT_CARDS = [
       "ranged": 5,
       "mounted": 3
     },
-    "tier": "C"
+    "tier": "C",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 1,
@@ -1413,7 +1506,8 @@ export const CONTRACT_CARDS = [
       "ranged": 5,
       "mounted": 4
     },
-    "tier": "C"
+    "tier": "C",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 1,
@@ -1428,7 +1522,8 @@ export const CONTRACT_CARDS = [
       "ranged": 5,
       "mounted": 6
     },
-    "tier": "C"
+    "tier": "C",
+    "completionEffect": "Muster 3:2:1"
   },
   {
     "copies": 1,
@@ -1443,6 +1538,87 @@ export const CONTRACT_CARDS = [
       "ranged": 5,
       "mounted": 5
     },
-    "tier": "C"
+    "tier": "C",
+    "completionEffect": "Muster 3:2:1"
+  },
+  {
+    "copies": 1,
+    "title": "The King's Contract",
+    "coins": 6,
+    "renown": 12,
+    "region": "any",
+    "type": "devastate",
+    "cardNumber": 97,
+    "requirements": {
+      "melee": 7,
+      "ranged": 6,
+      "mounted": 4
+    },
+    "tier": "R",
+    "completionEffect": "**When Completed:** Gain 1 elite from the supply"
+  },
+  {
+    "copies": 4,
+    "title": "Incense Delivery Escort",
+    "coins": 6,
+    "renown": 2,
+    "region": "any",
+    "type": "supply",
+    "cardNumber": 98,
+    "requirements": {
+      "melee": 2,
+      "ranged": 1,
+      "mounted": 1
+    },
+    "tier": "R",
+    "completionEffect": "**When Completed:** Gain 2 elites from the supply"
+  },
+  {
+    "copies": 4,
+    "title": "Beast Hunt",
+    "coins": 6,
+    "renown": 2,
+    "region": "any",
+    "type": "hunt",
+    "cardNumber": 99,
+    "requirements": {
+      "melee": 1,
+      "ranged": 1,
+      "mounted": 1
+    },
+    "tier": "R",
+    "completionEffect": "**When Completed:** Gain 1 elite from the supply"
+  },
+  {
+    "copies": 4,
+    "title": "Rich Caravan Loot",
+    "coins": 6,
+    "renown": 0,
+    "region": "any",
+    "type": "plunder",
+    "cardNumber": 100,
+    "requirements": {
+      "melee": 0,
+      "ranged": 2,
+      "mounted": 1
+    },
+    "tier": "R",
+    "completionEffect": "**When Completed:** Gain 1 elite from the supply"
+  },
+  {
+    "copies": 4,
+    "title": "Head Money",
+    "coins": 4,
+    "renown": 3,
+    "region": "any",
+    "type": "eliminate",
+    "cardNumber": 101,
+    "requirements": {
+      "melee": 3,
+      "ranged": 2,
+      "mounted": 0
+    },
+    "tier": "R",
+    "completionEffect": "**When Completed:** Gain 1 elite and 2 equipment from the supply"
   }
 ];

@@ -113,6 +113,41 @@ function gainEquipment(game, player, amount) {
   return gain;
 }
 
+function gainElite(game, player, amount) {
+  const gain = Math.min(amount, game.supply.elite);
+  game.supply.elite -= gain;
+  player.elite += gain;
+  return gain;
+}
+
+function applyContractCompletionEffect(game, player, contract) {
+  const text = (contract.completionEffect || '').toLowerCase();
+  if (!text.includes('when completed')) {
+    return;
+  }
+
+  let gainedElite = 0;
+  let gainedEquipment = 0;
+
+  if (text.includes('gain 2 elite')) {
+    gainedElite = gainElite(game, player, 2);
+  } else if (text.includes('gain 1 elite')) {
+    gainedElite = gainElite(game, player, 1);
+  }
+
+  if (text.includes('2 equipment')) {
+    gainedEquipment = gainEquipment(game, player, 2);
+  }
+
+  if (gainedElite > 0 || gainedEquipment > 0) {
+    player.rewardsTriggered += 1;
+    const parts = [];
+    if (gainedElite > 0) parts.push(`${gainedElite} elite`);
+    if (gainedEquipment > 0) parts.push(`${gainedEquipment} equipment`);
+    addEffect(game, `Tier R reward: ${player.name} gained ${parts.join(' and ')} from ${contract.title}.`);
+  }
+}
+
 function recruitFromSupplyAtMarketCost(game, player, type, amount, unitCost) {
   let recruited = 0;
   for (let i = 0; i < amount; i += 1) {
@@ -255,6 +290,7 @@ function createContractDeck() {
         coins: template.coins,
         tier: template.tier,
         cardNumber: template.cardNumber,
+        completionEffect: template.completionEffect || '',
       });
     }
   }
@@ -300,19 +336,136 @@ function deckSpecialist() {
   return null;
 }
 
-function deckEvent() {
-  const templates = [
-    { name: 'Windfall', effect: 'gainMoney', value: 3 },
-    { name: 'Armoury Shipment', effect: 'gainEquipment', value: 2 },
-    { name: 'Forced March', effect: 'campaignDiscount', value: 2 },
-  ];
+const EVENT_CARDS = [
+  // Tier A
+  {
+    name: 'Archery Contest', tier: 'A', copies: 1,
+    whenPlayed: { drawCard: true, addToBag: { ranged: 3 } },
+    ongoing: {},
+    roundEnd: 'archeryContest',
+  },
+  {
+    name: 'Disbanded Troops', tier: 'A', copies: 1,
+    whenPlayed: { drawCard: true, gainEquipmentAll: 1 },
+    ongoing: { recruitCostReduction: 1 },
+    roundEnd: null,
+  },
+  {
+    name: 'Drought', tier: 'A', copies: 1,
+    whenPlayed: { drawCard: true },
+    ongoing: { campaignCostDelta: 2 },
+    roundEnd: null,
+  },
+  {
+    name: 'War Spoils', tier: 'A', copies: 1,
+    whenPlayed: { drawCard: true },
+    ongoing: { contractBonus: { type: 'plunder', coins: 4 } },
+    roundEnd: null,
+  },
+  {
+    name: 'Open Season', tier: 'A', copies: 1,
+    whenPlayed: { drawCard: true },
+    ongoing: {},
+    roundEnd: 'openSeasonReward',
+  },
+  {
+    name: 'Abducted Children', tier: 'A', copies: 1,
+    whenPlayed: { drawCard: true, gainCoins: 3 },
+    ongoing: {},
+    roundEnd: null,
+  },
+  // Tier B
+  {
+    name: 'Bread & Games', tier: 'B', copies: 1,
+    whenPlayed: { drawCard: true, addToBag: { melee: 3, ranged: 3, mounted: 3 } },
+    ongoing: { marketDrawDelta: 2 },
+    roundEnd: null,
+  },
+  {
+    name: 'Ceremonial Season', tier: 'B', copies: 1,
+    whenPlayed: { drawCard: true },
+    ongoing: { contractBonus: { type: 'supply', coins: 4 } },
+    roundEnd: null,
+  },
+  {
+    name: 'Bandit Trouble', tier: 'B', copies: 1,
+    whenPlayed: { drawCard: true },
+    ongoing: { contractBonus: { type: 'eliminate', coins: 4 } },
+    roundEnd: null,
+  },
+  {
+    name: 'Good Harvest', tier: 'B', copies: 1,
+    whenPlayed: { drawCard: true },
+    ongoing: { campaignCostDelta: -3 },
+    roundEnd: null,
+  },
+  {
+    name: 'Local Holiday', tier: 'B', copies: 1,
+    whenPlayed: { drawCard: true },
+    ongoing: { endOfTurnDrawBonus: 1 },
+    roundEnd: null,
+  },
+  {
+    name: 'Ambushed Trade Routes', tier: 'B', copies: 1,
+    whenPlayed: { drawCard: true, gainCoins: 3 },
+    ongoing: { marketDrawDelta: -1 },
+    roundEnd: null,
+  },
+  // Tier C
+  {
+    name: 'High Spirits', tier: 'C', copies: 1,
+    whenPlayed: { drawCard: true, addToBag: { melee: 2, mounted: 2 }, gainEquipmentAll: 1 },
+    ongoing: { marketDrawDelta: 1 },
+    roundEnd: null,
+  },
+  {
+    name: 'Lands Besieged', tier: 'C', copies: 1,
+    whenPlayed: { drawCard: true },
+    ongoing: { contractBonus: { type: 'guard', coins: 4 }, guardFreeToAdd: true },
+    roundEnd: 'landsBesiegedReward',
+  },
+  {
+    name: 'Opportunism', tier: 'C', copies: 1,
+    whenPlayed: { drawCard: true },
+    ongoing: { contractBonus: { type: 'devastate', coins: 2 }, devastateFreeToAdd: true },
+    roundEnd: 'opportunismReward',
+  },
+  {
+    name: 'Cultist Procession', tier: 'C', copies: 1,
+    whenPlayed: { addToBagFromSupply: { melee: 4 } },
+    ongoing: { meleeWildsDisabled: true },
+    roundEnd: 'cultistReward',
+  },
+  {
+    name: 'The Tilt Run', tier: 'C', copies: 1,
+    whenPlayed: { drawCard: true, addToBag: { mounted: 3 } },
+    ongoing: {},
+    roundEnd: 'tiltRun',
+  },
+  {
+    name: 'A Royal Audience', tier: 'C', copies: 1,
+    whenPlayed: { drawCard: true, gainCoins: 3 },
+    ongoing: {},
+    roundEnd: 'royalAuction',
+  },
+];
 
-  const pick = sample(templates);
-  return {
-    id: uid('event'),
-    kind: 'event',
-    ...pick,
-  };
+function createEventDeck() {
+  const cards = [];
+  for (const template of EVENT_CARDS) {
+    for (let i = 0; i < template.copies; i += 1) {
+      cards.push({
+        id: uid('event'),
+        kind: 'event',
+        name: template.name,
+        tier: template.tier,
+        whenPlayed: { ...template.whenPlayed },
+        ongoing: { ...template.ongoing },
+        roundEnd: template.roundEnd || null,
+      });
+    }
+  }
+  return shuffle(cards);
 }
 
 function newPlayer(name, isHuman) {
@@ -324,6 +477,8 @@ function newPlayer(name, isHuman) {
     debts: 0,
     troops: { melee: 1, ranged: 0, mounted: 0 },
     equipment: 1,
+    elite: 0,
+    rewardsTriggered: 0,
     retinue: [],
     hand: [],
     eventInPlay: null,
@@ -334,7 +489,8 @@ function newPlayer(name, isHuman) {
 function drawFromDeck(game, kind, options = {}) {
   if (kind === 'contract') return drawContractFromGame(game, options.preferredTier || null);
   if (kind === 'specialist') return game.specialistDeck.shift() || null;
-  return deckEvent();
+  if (kind === 'event') return game.eventDeck.shift() || null;
+  return null;
 }
 
 function contractCost(contracts, discount = 0) {
@@ -398,10 +554,11 @@ function createInitialGame(config) {
     players,
     bag: { melee: 9, ranged: 5, mounted: 3 },
     market: { melee: 3, ranged: 1, mounted: 1 },
-    supply: { melee: 23, ranged: 12, mounted: 8 },
-    armoury: 60,
+    supply: { melee: 23, ranged: 12, mounted: 8, elite: 24 },
+    armoury: config.playerCount * 4,
     contractDeck: createContractDeck(),
     specialistDeck: createSpecialistDeck(),
+    eventDeck: createEventDeck(),
     offer: {
       contract: [],
       specialist: [],
@@ -443,7 +600,8 @@ function enlist(game) {
   }
 
   const recruiterBonus = hasSpecialist(getActivePlayer(game), 'The Recruiter') ? 3 : 0;
-  let draws = 5 + recruiterBonus;
+  const eventMarketDelta = getActivePlayer(game).eventInPlay?.ongoing?.marketDrawDelta || 0;
+  let draws = 5 + recruiterBonus + eventMarketDelta;
   while (draws > 0) {
     const pool = [];
     if (game.bag.melee > 0) pool.push('melee');
@@ -465,18 +623,66 @@ function mayTakeLoan(player) {
 function applyEventOnPlay(game, player, eventCard) {
   player.eventInPlay = eventCard;
 
-  if (eventCard.effect === 'gainMoney') {
-    player.money += eventCard.value;
-    addEffect(game, `${player.name} played ${eventCard.name} and gained ${eventCard.value} coins.`);
+  const wp = eventCard.whenPlayed || {};
+
+  if (wp.drawCard) {
+    const card = drawFromDeck(game, 'contract');
+    if (card) {
+      player.hand.push(card);
+      addEffect(game, `${player.name} drew a card from ${eventCard.name}.`);
+    }
   }
 
-  if (eventCard.effect === 'gainEquipment') {
-    const gain = gainEquipment(game, player, eventCard.value);
-    addEffect(game, `${player.name} played ${eventCard.name} and gained ${gain} equipment.`);
+  if (wp.gainCoins) {
+    player.money += wp.gainCoins;
+    addEffect(game, `${player.name} played ${eventCard.name} and gained ${wp.gainCoins} coins.`);
   }
 
-  if (eventCard.effect === 'campaignDiscount') {
-    addEffect(game, `${player.name} played ${eventCard.name}. Their campaign cost is reduced this turn.`);
+  if (wp.gainEquipmentAll) {
+    for (const p of game.players) {
+      const gain = gainEquipment(game, p, wp.gainEquipmentAll);
+      if (gain > 0) {
+        addEffect(game, `${p.name} gained ${gain} equipment from ${eventCard.name}.`);
+      }
+    }
+  }
+
+  if (wp.addToBag) {
+    for (const [type, count] of Object.entries(wp.addToBag)) {
+      if (count > 0) game.bag[type] = (game.bag[type] || 0) + count;
+    }
+    addEffect(game, `${eventCard.name} added dice to the muster bag.`);
+  }
+
+  if (wp.addToBagFromSupply) {
+    for (const [type, count] of Object.entries(wp.addToBagFromSupply)) {
+      const actual = Math.min(count, game.supply[type] || 0);
+      if (actual > 0) {
+        game.supply[type] -= actual;
+        game.bag[type] = (game.bag[type] || 0) + actual;
+      }
+    }
+    addEffect(game, `${eventCard.name} moved dice from supply to muster bag.`);
+  }
+
+  const ongoing = eventCard.ongoing || {};
+  if (ongoing.campaignCostDelta) {
+    const d = ongoing.campaignCostDelta;
+    addEffect(game, `${eventCard.name}: Campaign cost ${d > 0 ? `+${d}` : d} this turn.`);
+  }
+  if (ongoing.contractBonus) {
+    const { type, coins } = ongoing.contractBonus;
+    addEffect(game, `${eventCard.name}: ${type.toUpperCase()} contracts pay +${coins} coin this turn.`);
+  }
+  if (ongoing.marketDrawDelta) {
+    const d = ongoing.marketDrawDelta;
+    addEffect(game, `${eventCard.name}: Market draws ${d > 0 ? `+${d}` : d} dice this turn.`);
+  }
+  if (ongoing.endOfTurnDrawBonus) {
+    addEffect(game, `${eventCard.name}: Draw +${ongoing.endOfTurnDrawBonus} card(s) at end of turn.`);
+  }
+  if (ongoing.meleeWildsDisabled) {
+    addEffect(game, `${eventCard.name}: 6s on melee dice are not wild this turn.`);
   }
 }
 
@@ -647,9 +853,9 @@ function runCampaign(game, player, selectedContracts) {
     return;
   }
 
-  const eventDiscount = player.eventInPlay?.effect === 'campaignDiscount' ? player.eventInPlay.value : 0;
+  const eventCostDelta = player.eventInPlay?.ongoing?.campaignCostDelta || 0;
   const specialistDiscount = countSpecialist(player, 'Forager') + (2 * countSpecialist(player, 'Cook'));
-  const discount = eventDiscount + specialistDiscount;
+  const discount = specialistDiscount - eventCostDelta;
   const cost = contractCost(selectedContracts, discount);
 
   if (!canAfford(player, cost)) {
@@ -681,9 +887,12 @@ function runCampaign(game, player, selectedContracts) {
       if (contract.type === 'hunt') {
         rewardCoins += countSpecialist(player, 'Trophy Maker');
       }
+      const eventBonus = player.eventInPlay?.ongoing?.contractBonus;
+      if (eventBonus && contract.type === eventBonus.type) rewardCoins += eventBonus.coins;
 
       player.money += rewardCoins;
       player.scorePile.push(contract);
+      applyContractCompletionEffect(game, player, contract);
       addLog(game, `${player.name} completed ${contract.type} (${contract.region}) for ${contract.renown} renown and ${rewardCoins} coins.`);
       player.hand = player.hand.filter((card) => card.id !== contract.id);
       continue;
@@ -704,9 +913,12 @@ function runCampaign(game, player, selectedContracts) {
       if (contract.type === 'hunt') {
         rewardCoins += countSpecialist(player, 'Trophy Maker');
       }
+      const eventBonus2 = player.eventInPlay?.ongoing?.contractBonus;
+      if (eventBonus2 && contract.type === eventBonus2.type) rewardCoins += eventBonus2.coins;
 
       player.money += rewardCoins;
       player.scorePile.push(contract);
+      applyContractCompletionEffect(game, player, contract);
       addLog(game, `${player.name} completed ${contract.type} (${contract.region}) for ${contract.renown} renown and ${rewardCoins} coins.`);
     } else {
       addLog(game, `${player.name} failed ${contract.type} (${contract.region}).`);
@@ -720,7 +932,144 @@ function runCampaign(game, player, selectedContracts) {
   }
 }
 
+function applyRoundEndEvent(game, player) {
+  const event = player.eventInPlay;
+  if (!event || !event.roundEnd) return;
+
+  switch (event.roundEnd) {
+    case 'archeryContest': {
+      for (const p of game.players) {
+        let hits = 0;
+        for (let i = 0; i < p.troops.ranged; i += 1) {
+          const roll = rand(1, 6);
+          if (roll === 6) hits += 2;
+          else if (roll >= 4) hits += 1;
+        }
+        const coins = hits === 0 ? 0 : hits === 1 ? 1 : hits <= 3 ? 2 : hits <= 5 ? 3 : 6;
+        if (coins > 0) {
+          p.money += coins;
+          addEffect(game, `${p.name} scored ${hits} hits in Archery Contest, gaining ${coins} coins.`);
+        }
+      }
+      break;
+    }
+    case 'tiltRun': {
+      for (const p of game.players) {
+        let hits = 0;
+        for (let i = 0; i < p.troops.mounted; i += 1) {
+          const roll = rand(1, 6);
+          if (roll === 6) hits += 2;
+          else if (roll >= 4) hits += 1;
+        }
+        const coins = hits === 0 ? 0 : hits === 1 ? 1 : hits <= 3 ? 3 : hits <= 5 ? 5 : 10;
+        if (coins > 0) {
+          p.money += coins;
+          addEffect(game, `${p.name} scored ${hits} hits in The Tilt Run, gaining ${coins} coins.`);
+        }
+      }
+      break;
+    }
+    case 'openSeasonReward': {
+      for (const p of game.players) {
+        const huntCount = p.scorePile.filter((c) => c.type === 'hunt').length;
+        const coins = huntCount * 2;
+        if (coins > 0) {
+          p.money += coins;
+          addEffect(game, `${p.name} gained ${coins} coins from Open Season (${huntCount} HUNT contracts).`);
+        }
+      }
+      break;
+    }
+    case 'landsBesiegedReward': {
+      let best = 0;
+      let winner = null;
+      let tied = false;
+      for (const p of game.players) {
+        const count = p.scorePile.filter((c) => c.type === 'guard').length;
+        if (count > best) { best = count; winner = p; tied = false; }
+        else if (count === best && count > 0) { tied = true; }
+      }
+      if (!tied && winner) {
+        const spec = drawFromDeck(game, 'specialist');
+        if (spec) {
+          spec.name = 'The Poet';
+          winner.retinue.push(spec);
+          addEffect(game, `${winner.name} gained The Poet from Lands Besieged (${best} GUARD contracts).`);
+        }
+      } else if (tied) {
+        addEffect(game, `Lands Besieged: Tied on GUARD contracts — no one gains The Poet.`);
+      }
+      break;
+    }
+    case 'opportunismReward': {
+      let best = 0;
+      let winner = null;
+      let tied = false;
+      for (const p of game.players) {
+        const count = p.scorePile.filter((c) => c.type === 'devastate').length;
+        if (count > best) { best = count; winner = p; tied = false; }
+        else if (count === best && count > 0) { tied = true; }
+      }
+      if (!tied && winner) {
+        const spec = drawFromDeck(game, 'specialist');
+        if (spec) {
+          spec.name = 'The Opportunist';
+          winner.retinue.push(spec);
+          addEffect(game, `${winner.name} gained The Opportunist from Opportunism (${best} DEVASTATE contracts).`);
+        }
+      }
+      break;
+    }
+    case 'cultistReward': {
+      let most1s = 0;
+      let winner = null;
+      let tied = false;
+      for (const p of game.players) {
+        let ones = 0;
+        for (let i = 0; i < p.troops.melee; i += 1) {
+          if (rand(1, 6) === 1) ones += 1;
+        }
+        if (ones > most1s) { most1s = ones; winner = p; tied = false; }
+        else if (ones === most1s && ones > 0) { tied = true; }
+      }
+      if (!tied && winner) {
+        const spec = drawFromDeck(game, 'specialist');
+        if (spec) {
+          spec.name = 'Cultists';
+          winner.retinue.push(spec);
+          addEffect(game, `${winner.name} gained Cultists from Cultist Procession (${most1s} ones rolled).`);
+        }
+      } else if (tied) {
+        addEffect(game, `Cultist Procession: Tied on 1s — no one gains Cultists.`);
+      }
+      break;
+    }
+    case 'royalAuction': {
+      let richest = null;
+      let mostMoney = 0;
+      let tied = false;
+      for (const p of game.players) {
+        if (p.money > mostMoney) { mostMoney = p.money; richest = p; tied = false; }
+        else if (p.money === mostMoney && p.money > 0) { tied = true; }
+      }
+      if (!tied && richest) {
+        const bid = Math.max(1, Math.floor(richest.money / 2));
+        richest.money -= bid;
+        const contract = drawFromDeck(game, 'contract');
+        if (contract) {
+          richest.hand.push(contract);
+          addEffect(game, `${richest.name} won the Royal Auction (bid ${bid} coins) and drew a contract.`);
+        }
+      }
+      break;
+    }
+    default: break;
+  }
+}
+
 function muster(game, player) {
+  applyRoundEndEvent(game, player);
+
   const musterNeed = { melee: 3, ranged: 2, mounted: 1 };
   for (const type of ['melee', 'ranged', 'mounted']) {
     const add = Math.min(musterNeed[type], game.supply[type]);
@@ -728,13 +1077,7 @@ function muster(game, player) {
     game.bag[type] += add;
   }
 
-  if (player.eventInPlay?.effect === 'gainEquipment') {
-    // No ongoing effect.
-  }
-
-  if (player.eventInPlay?.effect === 'campaignDiscount') {
-    player.eventInPlay = null;
-  }
+  player.eventInPlay = null;
 }
 
 function drawCardToHand(game, player, source) {
@@ -788,7 +1131,9 @@ function refreshOffer(game) {
 }
 
 function autoDrawForAi(game, player) {
-  for (let i = 0; i < 2; i += 1) {
+  const bonus = player.eventInPlay?.ongoing?.endOfTurnDrawBonus || 0;
+  const draws = 2 + bonus;
+  for (let i = 0; i < draws; i += 1) {
     const sources = ['offer:contract', 'offer:specialist', 'offer:event', 'deck:contract'];
     const source = sample(sources);
     drawCardToHand(game, player, source);
