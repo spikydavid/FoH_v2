@@ -55,16 +55,74 @@ function canAfford(player, amount) {
   return player.money >= amount;
 }
 
+const MAIN_TIERS = ['A', 'B', 'C'];
+
+function countKindInTierDeck(deck, kind) {
+  if (kind === 'any') return deck.length;
+  return deck.reduce((sum, card) => sum + (card.kind === kind ? 1 : 0), 0);
+}
+
+function pickTierForKind(game, kind, preferredTier = null) {
+  if (preferredTier && MAIN_TIERS.includes(preferredTier)) {
+    const preferredCount = countKindInTierDeck(game.tierDecks[preferredTier], kind);
+    if (preferredCount > 0) return preferredTier;
+  }
+
+  const candidates = [];
+  let total = 0;
+  for (const tier of MAIN_TIERS) {
+    const count = countKindInTierDeck(game.tierDecks[tier], kind);
+    if (count > 0) {
+      candidates.push({ tier, count });
+      total += count;
+    }
+  }
+  if (total === 0) return null;
+
+  let roll = rand(1, total);
+  for (const candidate of candidates) {
+    roll -= candidate.count;
+    if (roll <= 0) return candidate.tier;
+  }
+  return candidates[candidates.length - 1].tier;
+}
+
+function drawKindFromTier(game, tier, kind) {
+  const deck = game.tierDecks[tier];
+  const index = deck.findIndex((card) => card.kind === kind);
+  if (index < 0) return null;
+  return deck.splice(index, 1)[0];
+}
+
+function allMainTierContracts(game) {
+  const cards = [];
+  for (const tier of MAIN_TIERS) {
+    for (const card of game.tierDecks[tier]) {
+      if (card.kind === 'contract') cards.push(card);
+    }
+  }
+  return cards;
+}
+
+function removeContractFromMainTiers(game, contractId) {
+  for (const tier of MAIN_TIERS) {
+    const index = game.tierDecks[tier].findIndex((card) => card.kind === 'contract' && card.id === contractId);
+    if (index >= 0) {
+      return game.tierDecks[tier].splice(index, 1)[0];
+    }
+  }
+  return null;
+}
+
 function drawContractFromTopN(game, count, chooser) {
-  const take = Math.min(count, game.contractDeck.length);
+  const contracts = allMainTierContracts(game);
+  const take = Math.min(count, contracts.length);
   if (take <= 0) return null;
 
-  const pool = game.contractDeck.splice(0, take);
+  const pool = shuffle(contracts).slice(0, take);
   const pickedIndex = Math.max(0, Math.min(pool.length - 1, chooser(pool)));
   const picked = pool.splice(pickedIndex, 1)[0];
-
-  game.contractDeck = shuffle([...pool, ...game.contractDeck]);
-  return picked;
+  return removeContractFromMainTiers(game, picked.id);
 }
 
 function drawBestContractFromTopN(game, count) {
@@ -161,27 +219,26 @@ function recruitFromSupplyAtMarketCost(game, player, type, amount, unitCost) {
 }
 
 function findBestContractByType(game, type) {
-  const indices = [];
-  for (let i = 0; i < game.contractDeck.length; i += 1) {
-    if (game.contractDeck[i].type === type) {
-      indices.push(i);
+  let bestTier = null;
+  let bestIndex = -1;
+  let bestScore = -Infinity;
+
+  for (const tier of MAIN_TIERS) {
+    const deck = game.tierDecks[tier];
+    for (let i = 0; i < deck.length; i += 1) {
+      const card = deck[i];
+      if (card.kind !== 'contract' || card.type !== type) continue;
+      const score = card.renown * 2 + card.coins;
+      if (score > bestScore) {
+        bestScore = score;
+        bestTier = tier;
+        bestIndex = i;
+      }
     }
   }
 
-  if (indices.length === 0) return null;
-
-  let bestIndex = indices[0];
-  let bestScore = game.contractDeck[bestIndex].renown * 2 + game.contractDeck[bestIndex].coins;
-  for (let i = 1; i < indices.length; i += 1) {
-    const index = indices[i];
-    const score = game.contractDeck[index].renown * 2 + game.contractDeck[index].coins;
-    if (score > bestScore) {
-      bestScore = score;
-      bestIndex = index;
-    }
-  }
-
-  return game.contractDeck.splice(bestIndex, 1)[0];
+  if (!bestTier) return null;
+  return game.tierDecks[bestTier].splice(bestIndex, 1)[0];
 }
 
 function removeSpecialistFromRetinue(player, specialistId) {
@@ -275,11 +332,13 @@ function getSmugglerTarget(selectedContracts) {
   return target;
 }
 
-function createContractDeck() {
-  const cards = [];
+function createTierDecks() {
+  const tierDecks = { A: [], B: [], C: [] };
+
   for (const template of CONTRACT_CARDS) {
+    if (!MAIN_TIERS.includes(template.tier)) continue;
     for (let i = 0; i < template.copies; i += 1) {
-      cards.push({
+      tierDecks[template.tier].push({
         id: uid('contract'),
         kind: 'contract',
         title: template.title,
@@ -294,14 +353,11 @@ function createContractDeck() {
       });
     }
   }
-  return shuffle(cards);
-}
 
-function createSpecialistDeck() {
-  const cards = [];
   for (const template of SPECIALIST_CARDS) {
+    if (!MAIN_TIERS.includes(template.tier)) continue;
     for (let i = 0; i < template.copies; i += 1) {
-      cards.push({
+      tierDecks[template.tier].push({
         id: uid('specialist'),
         kind: 'specialist',
         name: template.name,
@@ -312,28 +368,27 @@ function createSpecialistDeck() {
       });
     }
   }
-  return shuffle(cards);
-}
 
-function drawContractFromGame(game, preferredTier = null) {
-  if (game.contractDeck.length === 0) {
-    return null;
+  for (const template of EVENT_CARDS) {
+    if (!MAIN_TIERS.includes(template.tier)) continue;
+    for (let i = 0; i < template.copies; i += 1) {
+      tierDecks[template.tier].push({
+        id: uid('event'),
+        kind: 'event',
+        name: template.name,
+        tier: template.tier,
+        whenPlayed: { ...template.whenPlayed },
+        ongoing: { ...template.ongoing },
+        roundEnd: template.roundEnd || null,
+      });
+    }
   }
 
-  if (!preferredTier) {
-    return game.contractDeck.shift();
+  for (const tier of MAIN_TIERS) {
+    tierDecks[tier] = shuffle(tierDecks[tier]);
   }
 
-  const index = game.contractDeck.findIndex((card) => card.tier === preferredTier);
-  if (index >= 0) {
-    return game.contractDeck.splice(index, 1)[0];
-  }
-
-  return game.contractDeck.shift();
-}
-
-function deckSpecialist() {
-  return null;
+  return tierDecks;
 }
 
 const EVENT_CARDS = [
@@ -468,6 +523,29 @@ function createEventDeck() {
   return shuffle(cards);
 }
 
+function createRewardsDeck() {
+  const cards = [];
+  for (const template of CONTRACT_CARDS) {
+    if (template.tier !== 'R') continue;
+    for (let i = 0; i < template.copies; i += 1) {
+      cards.push({
+        id: uid('reward-contract'),
+        kind: 'contract',
+        title: template.title,
+        type: template.type,
+        region: template.region,
+        requirements: cloneTroops(template.requirements),
+        renown: template.renown,
+        coins: template.coins,
+        tier: template.tier,
+        cardNumber: template.cardNumber,
+        completionEffect: template.completionEffect || '',
+      });
+    }
+  }
+  return shuffle(cards);
+}
+
 function newPlayer(name, isHuman) {
   return {
     id: uid('player'),
@@ -487,13 +565,26 @@ function newPlayer(name, isHuman) {
 }
 
 function drawFromDeck(game, kind, options = {}) {
-  if (kind === 'contract') return drawContractFromGame(game, options.preferredTier || null);
-  if (kind === 'specialist') return game.specialistDeck.shift() || null;
-  if (kind === 'event') return game.eventDeck.shift() || null;
+  if (kind === 'rewardContract' || (kind === 'contract' && options.rewardOnly)) {
+    return game.rewardsDeck.shift() || null;
+  }
+
+  if (kind === 'any') {
+    const tier = pickTierForKind(game, 'any', options.preferredTier || null);
+    if (!tier) return null;
+    return game.tierDecks[tier].shift() || null;
+  }
+
+  if (kind === 'contract' || kind === 'specialist' || kind === 'event') {
+    const tier = pickTierForKind(game, kind, options.preferredTier || null);
+    if (!tier) return null;
+    return drawKindFromTier(game, tier, kind);
+  }
+
   return null;
 }
 
-function contractCost(contracts, discount = 0) {
+export function contractCost(contracts, discount = 0) {
   if (contracts.length <= 1) return 0;
   let cost = contracts.length === 2 ? 2 : 5;
 
@@ -556,13 +647,12 @@ function createInitialGame(config) {
     market: { melee: 3, ranged: 1, mounted: 1 },
     supply: { melee: 23, ranged: 12, mounted: 8, elite: 24 },
     armoury: config.playerCount * 4,
-    contractDeck: createContractDeck(),
-    specialistDeck: createSpecialistDeck(),
-    eventDeck: createEventDeck(),
+    tierDecks: createTierDecks(),
+    rewardsDeck: createRewardsDeck(),
     offer: {
-      contract: [],
-      specialist: [],
-      event: [],
+      A: [],
+      B: [],
+      C: [],
     },
     log: [],
     turnEffects: [],
@@ -574,12 +664,10 @@ function createInitialGame(config) {
     },
   };
 
-  const openingContract = drawFromDeck(game, 'contract');
-  if (openingContract) game.offer.contract.push(openingContract);
-  const openingSpecialist = drawFromDeck(game, 'specialist');
-  if (openingSpecialist) game.offer.specialist.push(openingSpecialist);
-  const openingEvent = drawFromDeck(game, 'event');
-  if (openingEvent) game.offer.event.push(openingEvent);
+  for (const tier of MAIN_TIERS) {
+    const openingOffer = drawFromDeck(game, 'any', { preferredTier: tier });
+    if (openingOffer) game.offer[tier].push(openingOffer);
+  }
 
   for (const player of players) {
     for (let i = 0; i < 5; i += 1) {
@@ -732,12 +820,31 @@ function classifyRolls(rolls, player) {
   return { successes, wildcard, wounded, dead };
 }
 
+function isSacrificeEligibleRoll(player, roll) {
+  void player;
+  return roll === 3 || (roll >= 4 && roll <= 6);
+}
+
+function getAutoSacrificeCounts(player, typeRolls) {
+  let woundedSuccesses = 0;
+  let healthySuccesses = 0;
+
+  for (const roll of typeRolls) {
+    if (roll === 3) {
+      woundedSuccesses += 1;
+    } else if (roll >= 4 && roll <= 6) {
+      healthySuccesses += 1;
+    }
+  }
+
+  return { woundedSuccesses, healthySuccesses };
+}
+
 export function previewBattleOutcome(player, contract, rolls, sacrificedIndices = null) {
   const { successes, wildcard: wc, wounded, dead } = classifyRolls(rolls, player);
   const rem = cloneTroops(contract.requirements);
   let remainingWild = wc;
   const exSuc = cloneTroops(successes);
-  const standardBearer = hasSpecialist(player, 'Standard Bearer');
 
   if (sacrificedIndices !== null) {
     // Apply explicit player sacrifices
@@ -745,10 +852,12 @@ export function previewBattleOutcome(player, contract, rolls, sacrificedIndices 
       for (const idx of sacrificedIndices[type]) {
         const roll = rolls[type]?.[idx];
         if (roll === undefined) continue;
-        const isEligible = roll === 3 && !standardBearer;
+        const isEligible = isSacrificeEligibleRoll(player, roll);
         if (isEligible) {
           exSuc[type] += 1;
-          wounded[type] = Math.max(0, wounded[type] - 1);
+          if (roll === 3) {
+            wounded[type] = Math.max(0, wounded[type] - 1);
+          }
           dead[type] += 1;
         }
       }
@@ -770,9 +879,14 @@ export function previewBattleOutcome(player, contract, rolls, sacrificedIndices 
     // Auto-sacrifice potential (AI / simple preview without explicit choices)
     for (const type of ['melee', 'ranged', 'mounted']) {
       if (rem[type] === 0) continue;
-      const killable = exSuc[type] + wounded[type];
-      const use = Math.min(rem[type], killable);
+      const autoSacrifice = getAutoSacrificeCounts(player, rolls[type]);
+      const useFromWounded = Math.min(rem[type], autoSacrifice.woundedSuccesses);
+      const remainingNeed = rem[type] - useFromWounded;
+      const useFromHealthy = Math.min(remainingNeed, autoSacrifice.healthySuccesses);
+      const use = useFromWounded + useFromHealthy;
       rem[type] -= use;
+      wounded[type] = Math.max(0, wounded[type] - useFromWounded);
+      dead[type] += use;
     }
   }
   const willSucceed = rem.melee + rem.ranged + rem.mounted === 0;
@@ -793,15 +907,16 @@ function finalizeContractBattle(game, player, contract, rolls, availableTroops, 
   // Apply explicit human sacrifices before filling requirements
   let sacrificed = 0;
   if (humanSacrificed !== null) {
-    const standardBearer = hasSpecialist(player, 'Standard Bearer');
     for (const type of ['melee', 'ranged', 'mounted']) {
       for (const idx of humanSacrificed[type]) {
         const roll = rolls[type]?.[idx];
         if (roll === undefined) continue;
-        const isEligible = roll === 3 && !standardBearer;
+        const isEligible = isSacrificeEligibleRoll(player, roll);
         if (isEligible) {
           successes[type] += 1;
-          wounded[type] = Math.max(0, wounded[type] - 1);
+          if (roll === 3) {
+            wounded[type] = Math.max(0, wounded[type] - 1);
+          }
           dead[type] += 1;
           sacrificed += 1;
         }
@@ -825,12 +940,17 @@ function finalizeContractBattle(game, player, contract, rolls, availableTroops, 
   }
 
   if (humanSacrificed === null) {
-    // Auto-sacrifice (AI path only)
+    // Auto-sacrifice (AI path only): sacrifice typed-success units for one
+    // further success of the same type, preferring wounded successes first.
     for (const type of ['melee', 'ranged', 'mounted']) {
       if (req[type] === 0) continue;
-      const killable = successes[type] + wounded[type];
-      const use = Math.min(req[type], killable);
+      const autoSacrifice = getAutoSacrificeCounts(player, rolls[type]);
+      const useFromWounded = Math.min(req[type], autoSacrifice.woundedSuccesses);
+      const remainingNeed = req[type] - useFromWounded;
+      const useFromHealthy = Math.min(remainingNeed, autoSacrifice.healthySuccesses);
+      const use = useFromWounded + useFromHealthy;
       req[type] -= use;
+      wounded[type] = Math.max(0, wounded[type] - useFromWounded);
       dead[type] += use;
       sacrificed += use;
     }
@@ -877,6 +997,37 @@ function finalizeContractBattle(game, player, contract, rolls, availableTroops, 
 
 function resolveContractBattle(game, player, contract, availableTroops) {
   const rolls = rollContractDice(availableTroops);
+
+  // AI: spend equipment to reroll dead dice (1-2) when losing, one at a time.
+  // Stop as soon as the battle is projected to be won or equipment runs out.
+  if (player.equipment > 0) {
+    const types = ['melee', 'ranged', 'mounted'];
+    let spent = 0;
+    while (player.equipment > 0) {
+      const preview = previewBattleOutcome(player, contract, rolls);
+      if (preview.willSucceed) break;
+      // Reroll the lowest dead die (roll 1 before 2) to maximise value
+      let rerolled = false;
+      for (const face of [1, 2]) {
+        for (const type of types) {
+          const idx = rolls[type].indexOf(face);
+          if (idx !== -1) {
+            rolls[type][idx] = Math.ceil(Math.random() * 6);
+            player.equipment -= 1;
+            spent += 1;
+            rerolled = true;
+            break;
+          }
+        }
+        if (rerolled) break;
+      }
+      if (!rerolled) break; // No dead dice remain to reroll
+    }
+    if (spent > 0) {
+      addEffect(game, `${player.name} used ${spent} equipment to reroll dice.`);
+    }
+  }
+
   return finalizeContractBattle(game, player, contract, rolls, availableTroops);
 }
 
@@ -899,24 +1050,50 @@ function canPlayContracts(player, contracts, smugglerTargetId = null) {
 }
 
 function chooseAiContracts(player) {
-  // Only consider contracts the player has the right troop types to attempt
-  const contracts = player.hand
-    .filter((card) => card.kind === 'contract')
-    .filter((card) =>
-      (card.requirements.melee === 0 || player.troops.melee > 0) &&
-      (card.requirements.ranged === 0 || player.troops.ranged > 0) &&
-      (card.requirements.mounted === 0 || player.troops.mounted > 0),
-    );
-  contracts.sort((a, b) => (b.renown + b.coins) - (a.renown + a.coins));
+  const specialistDiscount = countSpecialist(player, 'Forager') + (2 * countSpecialist(player, 'Cook'));
+  const eventCostDelta = player.eventInPlay?.ongoing?.campaignCostDelta || 0;
+  const discount = specialistDiscount - eventCostDelta;
 
-  for (let size = Math.min(3, contracts.length); size >= 1; size -= 1) {
-    const picks = contracts.slice(0, size);
-    if (canPlayContracts(player, picks)) {
-      return picks;
+  // Pre-filter to contracts the player has at least some troops for
+  const candidates = player.hand
+    .filter((c) => c.kind === 'contract')
+    .filter((c) =>
+      (c.requirements.melee === 0 || player.troops.melee > 0) &&
+      (c.requirements.ranged === 0 || player.troops.ranged > 0) &&
+      (c.requirements.mounted === 0 || player.troops.mounted > 0),
+    );
+  candidates.sort((a, b) => (b.renown + b.coins) - (a.renown + a.coins));
+
+  const n = candidates.length;
+  let bestPicks = [];
+  let bestValue = -1;
+
+  // Search all feasible combinations up to size 3 (n is small, so O(n³) is fine)
+  for (let i = 0; i < n; i++) {
+    const picks1 = [candidates[i]];
+    if (!canPlayContracts(player, picks1)) continue;
+    if (!canAfford(player, contractCost(picks1, discount))) continue;
+    const v1 = candidates[i].renown + candidates[i].coins;
+    if (v1 > bestValue) { bestValue = v1; bestPicks = picks1; }
+
+    for (let j = i + 1; j < n; j++) {
+      const picks2 = [candidates[i], candidates[j]];
+      if (!canPlayContracts(player, picks2)) continue;
+      if (!canAfford(player, contractCost(picks2, discount))) continue;
+      const v2 = v1 + candidates[j].renown + candidates[j].coins;
+      if (v2 > bestValue) { bestValue = v2; bestPicks = picks2; }
+
+      for (let k = j + 1; k < n; k++) {
+        const picks3 = [candidates[i], candidates[j], candidates[k]];
+        if (!canPlayContracts(player, picks3)) continue;
+        if (!canAfford(player, contractCost(picks3, discount))) continue;
+        const v3 = v2 + candidates[k].renown + candidates[k].coins;
+        if (v3 > bestValue) { bestValue = v3; bestPicks = picks3; }
+      }
     }
   }
 
-  return [];
+  return bestPicks;
 }
 
 function runCampaign(game, player, selectedContracts) {
@@ -1154,25 +1331,39 @@ function muster(game, player) {
 
 function drawCardToHand(game, player, source) {
   if (source.startsWith('offer:')) {
-    const kind = source.split(':')[1];
-    if (game.offer[kind].length === 0) return false;
+    const tier = source.split(':')[1];
+    if (!MAIN_TIERS.includes(tier)) return false;
+    if (game.offer[tier].length === 0) return false;
 
-    let card = game.offer[kind].shift();
+    let card = game.offer[tier].shift();
     if (!card) return false;
-    if (kind === 'contract' && hasSpecialist(player, 'Agent') && game.offer[kind].length > 0) {
-      let bestIndex = 0;
-      let bestScore = card.renown * 2 + card.coins;
-      for (let i = 0; i < game.offer[kind].length; i += 1) {
-        const score = game.offer[kind][i].renown * 2 + game.offer[kind][i].coins;
-        if (score > bestScore) {
-          bestScore = score;
-          bestIndex = i + 1;
-        }
+
+    if (hasSpecialist(player, 'Agent') && game.offer[tier].length > 0) {
+      // Agent prefers the best contract in this tier offer, if present.
+      const contractIndices = [];
+      if (card.kind === 'contract') contractIndices.push(-1);
+      for (let i = 0; i < game.offer[tier].length; i += 1) {
+        if (game.offer[tier][i].kind === 'contract') contractIndices.push(i);
       }
 
-      if (bestIndex > 0) {
-        game.offer[kind].unshift(card);
-        card = game.offer[kind].splice(bestIndex, 1)[0];
+      if (contractIndices.length > 0) {
+        let bestIdx = contractIndices[0];
+        const cardAt = (idx) => (idx === -1 ? card : game.offer[tier][idx]);
+        let bestScore = cardAt(bestIdx).renown * 2 + cardAt(bestIdx).coins;
+        for (let i = 1; i < contractIndices.length; i += 1) {
+          const idx = contractIndices[i];
+          const c = cardAt(idx);
+          const score = c.renown * 2 + c.coins;
+          if (score > bestScore) {
+            bestScore = score;
+            bestIdx = idx;
+          }
+        }
+
+        if (bestIdx >= 0) {
+          game.offer[tier].unshift(card);
+          card = game.offer[tier].splice(bestIdx + 1, 1)[0];
+        }
       }
     }
 
@@ -1180,14 +1371,15 @@ function drawCardToHand(game, player, source) {
     return true;
   }
 
-  const kind = source.split(':')[1];
+  const tier = source.split(':')[1];
+  if (!MAIN_TIERS.includes(tier)) return false;
   let card = null;
-  if (kind === 'contract' && hasSpecialist(player, 'Scout')) {
+  if (hasSpecialist(player, 'Scout')) {
     card = drawBestContractFromTopN(game, 5);
   }
 
   if (!card) {
-    card = drawFromDeck(game, kind);
+    card = drawFromDeck(game, 'any', { preferredTier: tier });
   }
 
   if (!card) return false;
@@ -1196,25 +1388,23 @@ function drawCardToHand(game, player, source) {
 }
 
 function refreshOffer(game) {
-  const contract = drawFromDeck(game, 'contract');
-  if (contract) game.offer.contract.push(contract);
-  const specialist = drawFromDeck(game, 'specialist');
-  if (specialist) game.offer.specialist.push(specialist);
-  game.offer.event = game.offer.event.filter(Boolean);
-  const eventCard = drawFromDeck(game, 'event');
-  if (eventCard) game.offer.event.push(eventCard);
+  for (const tier of MAIN_TIERS) {
+    game.offer[tier] = game.offer[tier].filter(Boolean);
+    const offerCard = drawFromDeck(game, 'any', { preferredTier: tier });
+    if (offerCard) game.offer[tier].push(offerCard);
+  }
 }
 
 function autoDrawForAi(game, player) {
   const bonus = player.eventInPlay?.ongoing?.endOfTurnDrawBonus || 0;
   const draws = 2 + bonus;
 
-  // Always draw at least one contract card
-  const contractSource = game.offer.contract.length > 0 ? 'offer:contract' : 'deck:contract';
-  drawCardToHand(game, player, contractSource);
+  // Always draw at least one card from Tier A if available.
+  const tierAOffer = game.offer.A.length > 0 ? 'offer:A' : 'deck:A';
+  drawCardToHand(game, player, tierAOffer);
 
   for (let i = 1; i < draws; i += 1) {
-    const sources = ['offer:contract', 'offer:specialist', 'offer:event', 'deck:contract'];
+    const sources = ['offer:A', 'offer:B', 'offer:C', 'deck:A', 'deck:B', 'deck:C'];
     drawCardToHand(game, player, sample(sources));
   }
 }
@@ -1402,6 +1592,35 @@ export function runSimulation(game) {
     game.isFinished = true;
     finishGame(game);
   }
+}
+
+/**
+ * Run `count` independent simulations and return an array of result objects,
+ * one per game. Each result has:
+ *   { gameIndex, rounds, ranking: [{ place, name, score: { total, contractRenown, setBonus, huntBonus, debtPenalty, contracts, money } }] }
+ */
+export function runMultipleSimulations(config, count) {
+  const results = [];
+  for (let i = 0; i < count; i++) {
+    const g = createInitialGame({ ...config, mode: 'simulation', humanPlayers: 0 });
+    g.phase = 'event';
+    let safety = 0;
+    while (!g.isFinished && safety < 2000) {
+      runAiTurn(g);
+      safety += 1;
+    }
+    if (!g.isFinished) {
+      g.isFinished = true;
+      finishGame(g);
+    }
+    const ranking = (g.winnerSummary || []).map((entry, idx) => ({
+      place: idx + 1,
+      name: entry.player.name,
+      score: entry.score,
+    }));
+    results.push({ gameIndex: i + 1, rounds: g.round, ranking });
+  }
+  return results;
 }
 
 export function beginInteractiveTurn(game) {
@@ -1624,8 +1843,7 @@ export function humanToggleSacrifice(game, type, index) {
   const pb = game.humanState.pendingBattle;
   const roll = pb.rolls[type]?.[index];
   if (roll === undefined) return false;
-  const standardBearer = hasSpecialist(player, 'Standard Bearer');
-  const isEligible = roll === 3 && !standardBearer;
+  const isEligible = isSacrificeEligibleRoll(player, roll);
   if (!isEligible) return false;
   const sac = pb.sacrificed[type];
   const pos = sac.indexOf(index);

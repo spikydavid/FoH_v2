@@ -293,3 +293,72 @@ ul {
     align-items: flex-start;
   }
 }
+
+/* ── Batch simulation ─────────────────────────────────────────────── */
+.batch-winner {
+  background: #fff7dc;
+  font-weight: 600;
+}
+
+.batch-table-scroll {
+  overflow-x: auto;
+  max-height: 60vh;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.batch-table-scroll table {
+  min-width: 600px;
+  border-collapse: collapse;
+}
+
+.batch-table-scroll td,
+.batch-table-scroll th {
+  padding: 6px 10px;
+  border-bottom: 1px solid #ddd5c0;
+  vertical-align: top;
+  font-size: 0.85rem;
+}
+
+.batch-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 12px 0 20px;
+}
+
+.batch-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.batch-bar-label {
+  width: 100px;
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+
+.batch-bar-track {
+  flex: 1;
+  height: 20px;
+  background: #e9e2d6;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.batch-bar-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+  min-width: 2px;
+}
+
+.batch-bar-pct {
+  width: 48px;
+  font-size: 0.85rem;
+  text-align: right;
+  flex-shrink: 0;
+}
