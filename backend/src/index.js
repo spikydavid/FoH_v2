@@ -3,6 +3,7 @@ const cors = require('cors');
 const healthRoutes = require('./routes/healthRoutes');
 const helloRoutes = require('./routes/helloRoutes');
 const infoRoutes = require('./routes/infoRoutes');
+const syncRoutes = require('./routes/syncRoutes');
 const env = require('./config/env');
 
 const app = express();
@@ -13,6 +14,7 @@ app.use(express.json());
 app.use('/api', healthRoutes);
 app.use('/api', helloRoutes);
 app.use('/api', infoRoutes);
+app.use('/api', syncRoutes);
 
 app.listen(env.port, () => {
   console.log(`Backend listening on http://localhost:${env.port} (${env.nodeEnv})`);

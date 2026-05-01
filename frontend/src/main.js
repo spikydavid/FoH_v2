@@ -106,8 +106,16 @@ function renderStartScreen() {
       <section class="panel hero">
         <h1>Field of Honour Simulator</h1>
         <p>Playable implementation based on the provided rule document with two modes.</p>
-        <p class="meta">Contracts synced from spreadsheet ${CONTRACT_DATA_SYNC.spreadsheetId} on ${CONTRACT_DATA_SYNC.syncedAt}.</p>
-        <p class="meta">Specialists synced from spreadsheet ${SPECIALIST_DATA_SYNC.spreadsheetId} on ${SPECIALIST_DATA_SYNC.syncedAt}.</p>
+        <div class="sync-row">
+          <span class="meta">Contracts: synced ${CONTRACT_DATA_SYNC.syncedAt}</span>
+          <button id="sync-contracts" class="sync-btn">↻ Resync Contracts</button>
+          <span id="sync-contracts-status" class="sync-status"></span>
+        </div>
+        <div class="sync-row">
+          <span class="meta">Specialists: synced ${SPECIALIST_DATA_SYNC.syncedAt}</span>
+          <button id="sync-specialists" class="sync-btn">↻ Resync Specialists</button>
+          <span id="sync-specialists-status" class="sync-status"></span>
+        </div>
         <div class="mode-buttons">
           <button id="start-sim">Simulation Mode (AI only)</button>
           <button id="start-int">Interactive Mode (humans + AI)</button>
@@ -156,6 +164,35 @@ function renderStartScreen() {
     const batchCount = Math.max(1, Math.min(1000, Number(document.querySelector('#batch-count').value) || 100));
     runBatchWithProgress({ playerCount }, batchCount);
   });
+
+  async function doSync(endpoint, btnId, statusId) {
+    const btn = document.querySelector(`#${btnId}`);
+    const status = document.querySelector(`#${statusId}`);
+    btn.disabled = true;
+    btn.textContent = '⏳ Syncing…';
+    status.textContent = '';
+    status.className = 'sync-status';
+    try {
+      const res = await fetch(`http://localhost:3000/api/${endpoint}`, { method: 'POST' });
+      const json = await res.json();
+      if (json.success) {
+        status.textContent = `✓ ${json.count} cards synced (${json.syncedAt}). Reload the page to apply.`;
+        status.className = 'sync-status sync-ok';
+      } else {
+        status.textContent = `✗ ${json.error}`;
+        status.className = 'sync-status sync-err';
+      }
+    } catch (err) {
+      status.textContent = `✗ Could not reach backend: ${err.message}`;
+      status.className = 'sync-status sync-err';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = btn.id === 'sync-contracts' ? '↻ Resync Contracts' : '↻ Resync Specialists';
+    }
+  }
+
+  document.querySelector('#sync-contracts').addEventListener('click', () => doSync('sync/contracts', 'sync-contracts', 'sync-contracts-status'));
+  document.querySelector('#sync-specialists').addEventListener('click', () => doSync('sync/specialists', 'sync-specialists', 'sync-specialists-status'));
 }
 
 function renderProgressScreen(done, total) {

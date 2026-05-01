@@ -362,3 +362,43 @@ ul {
   text-align: right;
   flex-shrink: 0;
 }
+
+/* ── Sync controls ────────────────────────────────────────────────── */
+.sync-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0;
+  flex-wrap: wrap;
+}
+
+.sync-btn {
+  padding: 4px 12px;
+  font-size: 0.85rem;
+  background: #fff2dc;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.sync-btn:hover:not(:disabled) {
+  background: var(--bg-2);
+}
+
+.sync-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.sync-status {
+  font-size: 0.85rem;
+}
+
+.sync-ok {
+  color: #2a7a2a;
+}
+
+.sync-err {
+  color: var(--accent);
+}
