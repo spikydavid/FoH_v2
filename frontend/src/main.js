@@ -320,6 +320,7 @@ function renderBatchResults() {
     totalRanged: 0,
     totalMounted: 0,
     totalMoney: 0,
+    totalEquipment: 0,
   }));
 
   for (const result of results) {
@@ -348,6 +349,7 @@ function renderBatchResults() {
       s.totalRanged += (entry.score.troopCounts?.ranged || 0);
       s.totalMounted += (entry.score.troopCounts?.mounted || 0);
       s.totalMoney += entry.score.money;
+      s.totalEquipment += (entry.score.equipment || 0);
     }
   }
 
@@ -369,6 +371,7 @@ function renderBatchResults() {
           supplyMelee: 0,
           supplyRanged: 0,
           supplyMounted: 0,
+          armoury: 0,
           offerA: 0,
           offerB: 0,
           offerC: 0,
@@ -376,6 +379,7 @@ function renderBatchResults() {
           deckB: 0,
           deckC: 0,
           deckR: 0,
+          playerEquipment: [],
         };
       }
       const a = turnAgg[i];
@@ -389,6 +393,7 @@ function renderBatchResults() {
       a.supplyMelee += st.supply?.melee || 0;
       a.supplyRanged += st.supply?.ranged || 0;
       a.supplyMounted += st.supply?.mounted || 0;
+      a.armoury += st.armoury || 0;
       a.offerA += st.offer?.A || 0;
       a.offerB += st.offer?.B || 0;
       a.offerC += st.offer?.C || 0;
@@ -396,6 +401,12 @@ function renderBatchResults() {
       a.deckB += st.decks?.B || 0;
       a.deckC += st.decks?.C || 0;
       a.deckR += st.decks?.R || 0;
+      if (st.playerEquipment) {
+        for (let pi = 0; pi < st.playerEquipment.length; pi += 1) {
+          if (a.playerEquipment[pi] === undefined) a.playerEquipment[pi] = 0;
+          a.playerEquipment[pi] += st.playerEquipment[pi] || 0;
+        }
+      }
     }
   }
 
@@ -417,6 +428,8 @@ function renderBatchResults() {
     const dB = (a.deckB / denom).toFixed(2);
     const dC = (a.deckC / denom).toFixed(2);
     const dR = (a.deckR / denom).toFixed(2);
+    const armouryAvg = (a.armoury / denom).toFixed(2);
+    const playerEqCells = (a.playerEquipment || []).map((total) => `<td>${(total / denom).toFixed(2)}</td>`).join('');
     const marketTotal = ((a.marketMelee + a.marketRanged + a.marketMounted) / denom).toFixed(2);
     const bagTotal = ((a.bagMelee + a.bagRanged + a.bagMounted) / denom).toFixed(2);
     const supplyTotal = ((a.supplyMelee + a.supplyRanged + a.supplyMounted) / denom).toFixed(2);
@@ -427,6 +440,8 @@ function renderBatchResults() {
       <td>${mM}</td><td>${mR}</td><td>${mMo}</td><td>${marketTotal}</td>
       <td>${bM}</td><td>${bR}</td><td>${bMo}</td><td>${bagTotal}</td>
       <td>${sM}</td><td>${sR}</td><td>${sMo}</td><td>${supplyTotal}</td>
+      <td>${armouryAvg}</td>
+      ${playerEqCells}
       <td>${oA}</td><td>${oB}</td><td>${oC}</td><td>${offerTotal}</td>
       <td>${dA}</td><td>${dB}</td><td>${dC}</td><td>${dR}</td><td>${deckTotal}</td>
       <td>${a.count}</td>
@@ -474,6 +489,7 @@ function renderBatchResults() {
       <td>${avg(s.totalRanged)}</td>
       <td>${avg(s.totalMounted)}</td>
       <td>${avg(s.totalMoney)}</td>
+      <td>${avg(s.totalEquipment)}</td>
     </tr>`;
   }).join('');
 
@@ -557,7 +573,7 @@ function renderBatchResults() {
 
         <h3>Summary</h3>
         <table>
-          <thead><tr><th>Place</th><th>Avg Score</th><th>Avg Turns</th><th>Avg Contracts/Campaign</th><th>Avg Contracts</th><th>Avg Renown</th><th>Avg Sets</th><th>Avg Hunt</th><th>Avg Debt</th><th>Avg Tier A</th><th>Avg Tier B</th><th>Avg Tier C</th><th>Avg Tier R</th><th>Avg Melee</th><th>Avg Ranged</th><th>Avg Mounted</th><th>Avg Coins</th></tr></thead>
+          <thead><tr><th>Place</th><th>Avg Score</th><th>Avg Turns</th><th>Avg Contracts/Campaign</th><th>Avg Contracts</th><th>Avg Renown</th><th>Avg Sets</th><th>Avg Hunt</th><th>Avg Debt</th><th>Avg Tier A</th><th>Avg Tier B</th><th>Avg Tier C</th><th>Avg Tier R</th><th>Avg Melee</th><th>Avg Ranged</th><th>Avg Mounted</th><th>Avg Coins</th><th>Avg Equipment</th></tr></thead>
           <tbody>${summaryRows}</tbody>
         </table>
 
@@ -606,6 +622,8 @@ function renderBatchResults() {
                 <th>Mkt M</th><th>Mkt R</th><th>Mkt Mo</th><th>Mkt Total</th>
                 <th>Bag M</th><th>Bag R</th><th>Bag Mo</th><th>Bag Total</th>
                 <th>Sup M</th><th>Sup R</th><th>Sup Mo</th><th>Sup Total</th>
+                <th>Armoury</th>
+                <th>P1 Equip</th><th>P2 Equip</th><th>P3 Equip</th><th>P4 Equip</th>
                 <th>Off A</th><th>Off B</th><th>Off C</th><th>Off Total</th>
                 <th>Deck A</th><th>Deck B</th><th>Deck C</th><th>Deck R</th><th>Deck Total</th>
                 <th>Samples</th>

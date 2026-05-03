@@ -1122,6 +1122,7 @@ function resolveContractBattle(game, player, contract, availableTroops) {
           if (idx !== -1) {
             rolls[type][idx] = Math.ceil(Math.random() * 6);
             player.equipment -= 1;
+            game.armoury += 1;
             spent += 1;
             rerolled = true;
             break;
@@ -1522,6 +1523,10 @@ function autoDrawForAi(game, player) {
     return canPlayContracts(player, [contract]);
   }
 
+  function canFeasiblyObtainTroops(contract) {
+    return estimateTroopPurchasePlan(game, player, [contract]) !== null;
+  }
+
   function drawPlayableOfferContract(tier) {
     const offer = game.offer[tier] || [];
     let bestIndex = -1;
@@ -1529,7 +1534,7 @@ function autoDrawForAi(game, player) {
     for (let i = 0; i < offer.length; i += 1) {
       const card = offer[i];
       if (card.kind !== 'contract') continue;
-      if (!canPlayContractNow(card)) continue;
+      if (!canPlayContractNow(card) && !canFeasiblyObtainTroops(card)) continue;
       const score = card.renown * 2 + card.coins;
       if (score > bestScore) {
         bestScore = score;
@@ -1551,18 +1556,18 @@ function autoDrawForAi(game, player) {
 
   for (let i = 0; i < draws; i += 1) {
     const leaderContracts = mostContractsCompleted();
-    const over50 = leaderContracts > (END_GAME_CONTRACT_TARGET * 0.5);
-    const over75 = leaderContracts > (END_GAME_CONTRACT_TARGET * 0.75);
+    const over30 = leaderContracts > (END_GAME_CONTRACT_TARGET * 0.3);
+    const over60 = leaderContracts > (END_GAME_CONTRACT_TARGET * 0.6);
 
-    // Offer checks: C always, B before 50%, A before 75%.
+    // Always prefer higher-tier offer contracts if feasible (playable now or troops obtainable).
     if (drawPlayableOfferContract('C')) continue;
-    if (!over50 && drawPlayableOfferContract('B')) continue;
-    if (!over75 && drawPlayableOfferContract('A')) continue;
+    if (drawPlayableOfferContract('B')) continue;
+    if (drawPlayableOfferContract('A')) continue;
 
-    // Deck fallback by progress through the end-game threshold.
-    if (over75) {
+    // Deck fallback: escalate through tiers as the game progresses.
+    if (over60) {
       drawFromTierDeck('C');
-    } else if (over50) {
+    } else if (over30) {
       drawFromTierDeck('B');
     } else {
       drawFromTierDeck('A');
@@ -1750,17 +1755,18 @@ function playAiMarket(game, player) {
     { source: 'supply', type: 'mounted', cost: 8 },
   ];
 
-  for (const buy of buyOrder) {
-    if (player.money - buy.cost < reserveForCampaign) continue;
-    if (buy.source === 'market' && game.market[buy.type] > 0) {
-      game.market[buy.type] -= 1;
-      player.troops[buy.type] += 1;
-      player.money -= buy.cost;
-    }
-    if (buy.source === 'supply' && game.supply[buy.type] > 0 && player.money - buy.cost >= reserveForCampaign) {
-      game.supply[buy.type] -= 1;
-      player.troops[buy.type] += 1;
-      player.money -= buy.cost;
+  let purchased = true;
+  while (purchased) {
+    purchased = false;
+    for (const buy of buyOrder) {
+      if (player.money - buy.cost < reserveForCampaign) continue;
+      const pool = buy.source === 'market' ? game.market : game.supply;
+      if (pool[buy.type] > 0) {
+        pool[buy.type] -= 1;
+        player.troops[buy.type] += 1;
+        player.money -= buy.cost;
+        purchased = true;
+      }
     }
   }
 
@@ -1827,6 +1833,7 @@ function computePlayerScore(player) {
     selectedContracts,
     contractSuccessRate,
     money: player.money,
+    equipment: player.equipment,
   };
 }
 
@@ -1970,6 +1977,7 @@ export function runMultipleSimulations(config, count) {
         market: { melee: g.market.melee, ranged: g.market.ranged, mounted: g.market.mounted },
         bag: { melee: g.bag.melee, ranged: g.bag.ranged, mounted: g.bag.mounted },
         supply: { melee: g.supply.melee, ranged: g.supply.ranged, mounted: g.supply.mounted },
+        armoury: g.armoury,
         offer: {
           A: g.offer.A.length,
           B: g.offer.B.length,
@@ -1981,6 +1989,7 @@ export function runMultipleSimulations(config, count) {
           C: (g.tierDecks.C || []).length,
           R: (g.rewardsDeck || []).length,
         },
+        playerEquipment: g.players.map((p) => p.equipment),
       });
 
       // Forced end at turn cap, but only after the current round is complete.
