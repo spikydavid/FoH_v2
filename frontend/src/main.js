@@ -256,6 +256,8 @@ function renderBatchResults() {
 
   const placeStats = results[0].ranking.map(() => ({
     totalScore: 0,
+    totalTurns: 0,
+    totalContractsPerCampaign: 0,
     totalContracts: 0,
     totalContractRenown: 0,
     totalSetBonus: 0,
@@ -278,6 +280,8 @@ function renderBatchResults() {
       const entry = result.ranking[i];
       const s = placeStats[i];
       s.totalScore += entry.score.total;
+      s.totalTurns += (entry.score.turns || 0);
+      s.totalContractsPerCampaign += (entry.score.contractsPerCampaign || 0);
       s.totalContracts += entry.score.contracts;
       s.totalContractRenown += entry.score.contractRenown;
       s.totalSetBonus += entry.score.setBonus;
@@ -319,6 +323,8 @@ function renderBatchResults() {
     return `<tr>
       <td>${placeLabel(i)}</td>
       <td>${avg(s.totalScore)}</td>
+      <td>${avg(s.totalTurns)}</td>
+      <td>${avg(s.totalContractsPerCampaign)}</td>
       <td>${avg(s.totalContracts)}</td>
       <td>${avg(s.totalContractRenown)}</td>
       <td>${avg(s.totalSetBonus)}</td>
@@ -370,7 +376,7 @@ function renderBatchResults() {
 
         <h3>Summary</h3>
         <table>
-          <thead><tr><th>Place</th><th>Avg Score</th><th>Avg Contracts</th><th>Avg Renown</th><th>Avg Sets</th><th>Avg Hunt</th><th>Avg Debt</th><th>Avg Tier A</th><th>Avg Tier B</th><th>Avg Tier C</th><th>Avg Tier R</th><th>Avg Melee</th><th>Avg Ranged</th><th>Avg Mounted</th><th>Avg Coins</th></tr></thead>
+          <thead><tr><th>Place</th><th>Avg Score</th><th>Avg Turns</th><th>Avg Contracts/Campaign</th><th>Avg Contracts</th><th>Avg Renown</th><th>Avg Sets</th><th>Avg Hunt</th><th>Avg Debt</th><th>Avg Tier A</th><th>Avg Tier B</th><th>Avg Tier C</th><th>Avg Tier R</th><th>Avg Melee</th><th>Avg Ranged</th><th>Avg Mounted</th><th>Avg Coins</th></tr></thead>
           <tbody>${summaryRows}</tbody>
         </table>
 

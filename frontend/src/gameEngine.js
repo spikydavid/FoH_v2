@@ -563,6 +563,9 @@ function newPlayer(name, isHuman) {
     hand: [],
     eventInPlay: null,
     scorePile: [],
+    turnsTaken: 0,
+    campaignsRun: 0,
+    totalContractsSelected: 0,
   };
 }
 
@@ -1099,6 +1102,9 @@ function chooseAiContracts(player) {
 }
 
 function runCampaign(game, player, selectedContracts) {
+  player.campaignsRun += 1;
+  player.totalContractsSelected += selectedContracts.length;
+
   if (selectedContracts.length === 0) {
     addLog(game, `${player.name} skipped campaign (no eligible contracts).`);
     return;
@@ -1540,6 +1546,9 @@ function computePlayerScore(player) {
     ranged: player.troops.ranged,
     mounted: player.troops.mounted,
   };
+  const contractsPerCampaign = player.campaignsRun > 0
+    ? player.totalContractsSelected / player.campaignsRun
+    : 0;
   for (const card of player.scorePile) {
     const tier = (card.tier || '').toUpperCase();
     if (tierCounts[tier] !== undefined) tierCounts[tier] += 1;
@@ -1554,6 +1563,8 @@ function computePlayerScore(player) {
     contracts: player.scorePile.length,
     tierCounts,
     troopCounts,
+    turns: player.turnsTaken,
+    contractsPerCampaign,
     money: player.money,
   };
 }
@@ -1612,6 +1623,7 @@ export function runAiTurn(game) {
   if (game.isFinished) return;
 
   const player = getActivePlayer(game);
+  player.turnsTaken += 1;
   resetTurnEffects(game);
   setTurnPhase(game, 'Event');
 
@@ -1661,7 +1673,7 @@ export function runSimulation(game) {
 /**
  * Run `count` independent simulations and return an array of result objects,
  * one per game. Each result has:
- *   { gameIndex, rounds, ranking: [{ place, name, score: { total, contractRenown, setBonus, huntBonus, debtPenalty, contracts, tierCounts, troopCounts, money } }] }
+ *   { gameIndex, rounds, ranking: [{ place, name, score: { total, contractRenown, setBonus, huntBonus, debtPenalty, contracts, tierCounts, troopCounts, turns, contractsPerCampaign, money } }] }
  */
 export function runMultipleSimulations(config, count) {
   const results = [];
