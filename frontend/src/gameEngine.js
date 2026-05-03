@@ -11,6 +11,8 @@ const SET_SCORES = {
 };
 
 const END_GAME_CONTRACT_TARGET = 10;
+const MAX_SIM_TURNS = 50;
+const SIM_HARD_SAFETY = 2000;
 
 const AI_MARKET_MODELS = [
   {
@@ -1801,6 +1803,10 @@ function computePlayerScore(player) {
   const contractsPerCampaign = player.campaignsRun > 0
     ? player.totalContractsSelected / player.campaignsRun
     : 0;
+  const selectedContracts = player.totalContractsSelected;
+  const contractSuccessRate = selectedContracts > 0
+    ? player.scorePile.length / selectedContracts
+    : 0;
   for (const card of player.scorePile) {
     const tier = (card.tier || '').toUpperCase();
     if (tierCounts[tier] !== undefined) tierCounts[tier] += 1;
@@ -1817,6 +1823,8 @@ function computePlayerScore(player) {
     troopCounts,
     turns: player.turnsTaken,
     contractsPerCampaign,
+    selectedContracts,
+    contractSuccessRate,
     money: player.money,
   };
 }
@@ -1918,10 +1926,17 @@ export function runAiTurn(game) {
 }
 
 export function runSimulation(game) {
-  let safety = 0;
-  while (!game.isFinished && safety < 2000) {
+  let turns = 0;
+  while (!game.isFinished && turns < SIM_HARD_SAFETY) {
     runAiTurn(game);
-    safety += 1;
+    turns += 1;
+
+    // Forced end at turn cap, but only after the current round is complete.
+    if (!game.isFinished && turns >= MAX_SIM_TURNS && game.currentPlayerIndex === 0) {
+      game.isFinished = true;
+      finishGame(game);
+      break;
+    }
   }
   if (!game.isFinished) {
     game.isFinished = true;
@@ -1935,8 +1950,8 @@ export function runSimulation(game) {
  *   {
  *     gameIndex,
  *     rounds,
- *     ranking: [{ place, name, score: { total, contractRenown, setBonus, huntBonus, debtPenalty, contracts, tierCounts, troopCounts, turns, contractsPerCampaign, money } }],
- *     turnStates: [{ turn, market, bag, supply }]
+ *     ranking: [{ place, name, score: { total, contractRenown, setBonus, huntBonus, debtPenalty, contracts, tierCounts, troopCounts, turns, contractsPerCampaign, selectedContracts, contractSuccessRate, money } }],
+ *     turnStates: [{ turn, market, bag, supply, offer, decks }]
  *   }
  */
 export function runMultipleSimulations(config, count) {
@@ -1944,17 +1959,35 @@ export function runMultipleSimulations(config, count) {
   for (let i = 0; i < count; i++) {
     const g = createInitialGame({ ...config, mode: 'simulation', humanPlayers: 0, batchSimulation: true });
     g.phase = 'event';
-    let safety = 0;
+    let turns = 0;
     const turnStates = [];
-    while (!g.isFinished && safety < 2000) {
+    while (!g.isFinished && turns < SIM_HARD_SAFETY) {
       runAiTurn(g);
-      safety += 1;
+      turns += 1;
       turnStates.push({
-        turn: safety,
+        turn: turns,
         market: { melee: g.market.melee, ranged: g.market.ranged, mounted: g.market.mounted },
         bag: { melee: g.bag.melee, ranged: g.bag.ranged, mounted: g.bag.mounted },
         supply: { melee: g.supply.melee, ranged: g.supply.ranged, mounted: g.supply.mounted },
+        offer: {
+          A: g.offer.A.length,
+          B: g.offer.B.length,
+          C: g.offer.C.length,
+        },
+        decks: {
+          A: (g.tierDecks.A || []).length,
+          B: (g.tierDecks.B || []).length,
+          C: (g.tierDecks.C || []).length,
+          R: (g.rewardsDeck || []).length,
+        },
       });
+
+      // Forced end at turn cap, but only after the current round is complete.
+      if (!g.isFinished && turns >= MAX_SIM_TURNS && g.currentPlayerIndex === 0) {
+        g.isFinished = true;
+        finishGame(g);
+        break;
+      }
     }
     if (!g.isFinished) {
       g.isFinished = true;

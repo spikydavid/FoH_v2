@@ -129,7 +129,7 @@ function renderStartScreen() {
             <input id="human-count" type="number" min="0" max="4" value="1" />
           </label>
           <label>Batch runs
-            <input id="batch-count" type="number" min="1" max="1000" value="1000" />
+            <input id="batch-count" type="number" min="1" max="100000" value="1000" />
           </label>
           <label>
             <input id="batch-disable-events" type="checkbox" /> Disable events (batch only)
@@ -196,7 +196,7 @@ function renderStartScreen() {
 
   document.querySelector('#start-batch').addEventListener('click', () => {
     const playerCount = Math.max(2, Math.min(4, Number(playersInput.value) || 4));
-    const batchCount = Math.max(1, Math.min(1000, Number(document.querySelector('#batch-count').value) || 1000));
+    const batchCount = Math.max(1, Math.min(100000, Number(document.querySelector('#batch-count').value) || 1000));
     const disableEvents = document.querySelector('#batch-disable-events').checked;
     const aiModels = [
       document.querySelector('#batch-ai-1').value,
@@ -294,7 +294,11 @@ function renderBatchResults() {
 
   // Track win rate per player, and all other metrics by finishing position.
   const playerWins = {};
+  const playerContractStats = {};
   for (const name of playerNames) playerWins[name] = 0;
+  for (const name of playerNames) {
+    playerContractStats[name] = { successes: 0, attempts: 0 };
+  }
 
   const placeStats = results[0].ranking.map(() => ({
     totalScore: 0,
@@ -320,6 +324,10 @@ function renderBatchResults() {
     playerWins[winner.name] += 1;
     for (let i = 0; i < result.ranking.length; i += 1) {
       const entry = result.ranking[i];
+      const pcs = playerContractStats[entry.name];
+      pcs.successes += entry.score.contracts || 0;
+      pcs.attempts += entry.score.selectedContracts || 0;
+
       const s = placeStats[i];
       s.totalScore += entry.score.total;
       s.totalTurns += (entry.score.turns || 0);
@@ -358,6 +366,13 @@ function renderBatchResults() {
           supplyMelee: 0,
           supplyRanged: 0,
           supplyMounted: 0,
+          offerA: 0,
+          offerB: 0,
+          offerC: 0,
+          deckA: 0,
+          deckB: 0,
+          deckC: 0,
+          deckR: 0,
         };
       }
       const a = turnAgg[i];
@@ -371,6 +386,13 @@ function renderBatchResults() {
       a.supplyMelee += st.supply?.melee || 0;
       a.supplyRanged += st.supply?.ranged || 0;
       a.supplyMounted += st.supply?.mounted || 0;
+      a.offerA += st.offer?.A || 0;
+      a.offerB += st.offer?.B || 0;
+      a.offerC += st.offer?.C || 0;
+      a.deckA += st.decks?.A || 0;
+      a.deckB += st.decks?.B || 0;
+      a.deckC += st.decks?.C || 0;
+      a.deckR += st.decks?.R || 0;
     }
   }
 
@@ -385,20 +407,32 @@ function renderBatchResults() {
     const sM = (a.supplyMelee / denom).toFixed(2);
     const sR = (a.supplyRanged / denom).toFixed(2);
     const sMo = (a.supplyMounted / denom).toFixed(2);
+    const oA = (a.offerA / denom).toFixed(2);
+    const oB = (a.offerB / denom).toFixed(2);
+    const oC = (a.offerC / denom).toFixed(2);
+    const dA = (a.deckA / denom).toFixed(2);
+    const dB = (a.deckB / denom).toFixed(2);
+    const dC = (a.deckC / denom).toFixed(2);
+    const dR = (a.deckR / denom).toFixed(2);
     const marketTotal = ((a.marketMelee + a.marketRanged + a.marketMounted) / denom).toFixed(2);
     const bagTotal = ((a.bagMelee + a.bagRanged + a.bagMounted) / denom).toFixed(2);
     const supplyTotal = ((a.supplyMelee + a.supplyRanged + a.supplyMounted) / denom).toFixed(2);
+    const offerTotal = ((a.offerA + a.offerB + a.offerC) / denom).toFixed(2);
+    const deckTotal = ((a.deckA + a.deckB + a.deckC + a.deckR) / denom).toFixed(2);
     return `<tr>
       <td>${i + 1}</td>
       <td>${mM}</td><td>${mR}</td><td>${mMo}</td><td>${marketTotal}</td>
       <td>${bM}</td><td>${bR}</td><td>${bMo}</td><td>${bagTotal}</td>
       <td>${sM}</td><td>${sR}</td><td>${sMo}</td><td>${supplyTotal}</td>
+      <td>${oA}</td><td>${oB}</td><td>${oC}</td><td>${offerTotal}</td>
+      <td>${dA}</td><td>${dB}</td><td>${dC}</td><td>${dR}</td><td>${deckTotal}</td>
       <td>${a.count}</td>
     </tr>`;
   }).join('');
 
   const avg = (total) => (total / n).toFixed(1);
   const pct = (wins) => ((wins / n) * 100).toFixed(1);
+  const ratePct = (successes, attempts) => (attempts > 0 ? ((successes / attempts) * 100).toFixed(1) : '0.0');
   const chartPlayerNames = [...playerNames].sort((a, b) => {
     const aNum = Number((a.match(/\d+/) || [])[0]);
     const bNum = Number((b.match(/\d+/) || [])[0]);
@@ -443,10 +477,72 @@ function renderBatchResults() {
   // Separate per-player win-rate summary.
   const winSummaryRows = chartPlayerNames.map((name) => {
     const wins = playerWins[name];
+    const contractStats = playerContractStats[name];
     return `<tr>
       <td>${name}</td>
       <td><strong>${wins}</strong></td>
       <td>${pct(wins)}%</td>
+      <td>${contractStats.successes}</td>
+      <td>${contractStats.attempts}</td>
+      <td>${ratePct(contractStats.successes, contractStats.attempts)}%</td>
+    </tr>`;
+  }).join('');
+
+  const globalContractSuccess = Object.values(playerContractStats).reduce(
+    (acc, s) => {
+      acc.successes += s.successes;
+      acc.attempts += s.attempts;
+      return acc;
+    },
+    { successes: 0, attempts: 0 },
+  );
+
+  // Game length distribution (total player-turns per game).
+  const gameTurnCounts = results.map((r) => (r.turnStates || []).length);
+  const minGameTurns = Math.min(...gameTurnCounts);
+  const maxGameTurns = Math.max(...gameTurnCounts);
+  const turnFrequency = new Map();
+  for (const turns of gameTurnCounts) {
+    turnFrequency.set(turns, (turnFrequency.get(turns) || 0) + 1);
+  }
+
+  const turnDistribution = [];
+  for (let t = minGameTurns; t <= maxGameTurns; t += 1) {
+    const count = turnFrequency.get(t) || 0;
+    turnDistribution.push({
+      turns: t,
+      count,
+      proportion: count / n,
+    });
+  }
+
+  const representedTurns = turnDistribution.filter((d) => d.proportion > 0);
+  const turnColorMap = new Map();
+  for (let i = 0; i < representedTurns.length; i += 1) {
+    const d = representedTurns[i];
+    // Golden-angle spacing gives clearly distinct colors even with many slices.
+    const hue = Math.round((i * 137.508) % 360);
+    turnColorMap.set(d.turns, `hsl(${hue} 72% 55%)`);
+  }
+
+  let pieStart = 0;
+  const pieStops = representedTurns
+    .map((d) => {
+      const color = turnColorMap.get(d.turns) || '#e5e5e5';
+      const from = (pieStart * 100).toFixed(2);
+      pieStart += d.proportion;
+      const to = (pieStart * 100).toFixed(2);
+      return { turns: d.turns, color, from, to, count: d.count, proportion: d.proportion };
+    });
+  const pieGradient = pieStops.length > 0
+    ? `conic-gradient(${pieStops.map((s) => `${s.color} ${s.from}% ${s.to}%`).join(', ')})`
+    : 'conic-gradient(#ddd 0% 100%)';
+  const turnLegendRows = turnDistribution.map((d) => {
+    const swatch = turnColorMap.get(d.turns) || '#e5e5e5';
+    return `<tr>
+      <td><span style="display:inline-block;width:12px;height:12px;border-radius:2px;background:${swatch};vertical-align:middle"></span> ${d.turns}</td>
+      <td>${d.count}</td>
+      <td>${(d.proportion * 100).toFixed(2)}%</td>
     </tr>`;
   }).join('');
 
@@ -464,9 +560,24 @@ function renderBatchResults() {
 
         <h3>Player Win Summary</h3>
         <table>
-          <thead><tr><th>Player</th><th>Wins</th><th>Win Rate</th></tr></thead>
+          <thead><tr><th>Player</th><th>Wins</th><th>Win Rate</th><th>Contracts Completed</th><th>Contracts Attempted</th><th>Contract Success Rate</th></tr></thead>
           <tbody>${winSummaryRows}</tbody>
         </table>
+
+        <h3>Global Contract Success</h3>
+        <p class="meta">${globalContractSuccess.successes} completed out of ${globalContractSuccess.attempts} attempted (${ratePct(globalContractSuccess.successes, globalContractSuccess.attempts)}%).</p>
+
+        <h3>Game Length Distribution</h3>
+        <p class="meta">Minimum turns: <strong>${minGameTurns}</strong> | Maximum turns: <strong>${maxGameTurns}</strong></p>
+        <div class="sync-row" style="align-items:flex-start;gap:20px">
+          <div style="width:260px;height:260px;border-radius:50%;background:${pieGradient};border:1px solid #ddd;flex:0 0 auto"></div>
+          <div class="batch-table-scroll" style="max-height:260px;min-width:280px">
+            <table>
+              <thead><tr><th>Turns</th><th>Games</th><th>Proportion</th></tr></thead>
+              <tbody>${turnLegendRows}</tbody>
+            </table>
+          </div>
+        </div>
 
         <h3>Win Rate Chart</h3>
         <div class="batch-bars">
@@ -492,6 +603,8 @@ function renderBatchResults() {
                 <th>Mkt M</th><th>Mkt R</th><th>Mkt Mo</th><th>Mkt Total</th>
                 <th>Bag M</th><th>Bag R</th><th>Bag Mo</th><th>Bag Total</th>
                 <th>Sup M</th><th>Sup R</th><th>Sup Mo</th><th>Sup Total</th>
+                <th>Off A</th><th>Off B</th><th>Off C</th><th>Off Total</th>
+                <th>Deck A</th><th>Deck B</th><th>Deck C</th><th>Deck R</th><th>Deck Total</th>
                 <th>Samples</th>
               </tr>
             </thead>
@@ -594,6 +707,41 @@ function renderHumanControls(active) {
     const campaignCost = contractCost(selectedCards, discount);
     const canAfford = active.money >= campaignCost;
     const hasSelected = selectedCards.length > 0;
+    const req = selectedCards.reduce(
+      (sum, c) => {
+        sum.melee += c.requirements.melee;
+        sum.ranged += c.requirements.ranged;
+        sum.mounted += c.requirements.mounted;
+        return sum;
+      },
+      { melee: 0, ranged: 0, mounted: 0 },
+    );
+    const canMeetTroops = (
+      active.troops.melee >= req.melee
+      && active.troops.ranged >= req.ranged
+      && active.troops.mounted >= req.mounted
+    );
+
+    const shortage = {
+      melee: Math.max(0, req.melee - active.troops.melee),
+      ranged: Math.max(0, req.ranged - active.troops.ranged),
+      mounted: Math.max(0, req.mounted - active.troops.mounted),
+    };
+
+    let troopMsg = '';
+    if (hasSelected) {
+      const reqText = `Required troops: M${req.melee}/R${req.ranged}/Mo${req.mounted}`;
+      const haveText = `You have: M${active.troops.melee}/R${active.troops.ranged}/Mo${active.troops.mounted}`;
+      if (canMeetTroops) {
+        troopMsg = `<p class="meta">${reqText}. ${haveText}. <span class="win">✓ Troops available</span></p>`;
+      } else {
+        const missingParts = [];
+        if (shortage.melee > 0) missingParts.push(`M${shortage.melee}`);
+        if (shortage.ranged > 0) missingParts.push(`R${shortage.ranged}`);
+        if (shortage.mounted > 0) missingParts.push(`Mo${shortage.mounted}`);
+        troopMsg = `<p class="meta">${reqText}. ${haveText}. <span class="fail">✗ Missing ${missingParts.join(', ')}</span></p>`;
+      }
+    }
 
     let costMsg = '';
     if (!hasSelected) {
@@ -620,7 +768,7 @@ function renderHumanControls(active) {
       )
       .join('');
 
-    const runDisabled = hasSelected && !canAfford ? 'disabled' : '';
+    const runDisabled = hasSelected && (!canAfford || !canMeetTroops) ? 'disabled' : '';
     const runLabel = hasSelected ? `Run Campaign (cost: ${campaignCost === 0 ? 'free' : campaignCost + ' coins'})` : 'Skip Campaign (no cost)';
 
     return `
@@ -628,6 +776,7 @@ function renderHumanControls(active) {
         <h3>Human Campaign</h3>
         <p>Select up to 3 contracts. You may run with zero to skip.</p>
         ${costMsg}
+        ${troopMsg}
         <div class="contracts-list">${contractButtons || '<p>No contracts in hand.</p>'}</div>
         <button class="primary" data-action="run-campaign" ${runDisabled}>${runLabel}</button>
       </section>
