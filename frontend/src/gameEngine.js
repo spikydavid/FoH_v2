@@ -1535,6 +1535,11 @@ function computePlayerScore(player) {
   const debtPenalty = player.debts * 6;
   const total = contractRenown + setBonus + huntBonus - debtPenalty;
   const tierCounts = { A: 0, B: 0, C: 0, R: 0 };
+  const troopCounts = {
+    melee: player.troops.melee,
+    ranged: player.troops.ranged,
+    mounted: player.troops.mounted,
+  };
   for (const card of player.scorePile) {
     const tier = (card.tier || '').toUpperCase();
     if (tierCounts[tier] !== undefined) tierCounts[tier] += 1;
@@ -1548,6 +1553,7 @@ function computePlayerScore(player) {
     total,
     contracts: player.scorePile.length,
     tierCounts,
+    troopCounts,
     money: player.money,
   };
 }
@@ -1655,7 +1661,7 @@ export function runSimulation(game) {
 /**
  * Run `count` independent simulations and return an array of result objects,
  * one per game. Each result has:
- *   { gameIndex, rounds, ranking: [{ place, name, score: { total, contractRenown, setBonus, huntBonus, debtPenalty, contracts, tierCounts, money } }] }
+ *   { gameIndex, rounds, ranking: [{ place, name, score: { total, contractRenown, setBonus, huntBonus, debtPenalty, contracts, tierCounts, troopCounts, money } }] }
  */
 export function runMultipleSimulations(config, count) {
   const results = [];

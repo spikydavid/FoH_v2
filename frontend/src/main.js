@@ -265,6 +265,9 @@ function renderBatchResults() {
       totalTierB: 0,
       totalTierC: 0,
       totalTierR: 0,
+      totalMelee: 0,
+      totalRanged: 0,
+      totalMounted: 0,
       totalMoney: 0,
     };
   }
@@ -283,6 +286,9 @@ function renderBatchResults() {
       s.totalTierB += (entry.score.tierCounts?.B || 0);
       s.totalTierC += (entry.score.tierCounts?.C || 0);
       s.totalTierR += (entry.score.tierCounts?.R || 0);
+      s.totalMelee += (entry.score.troopCounts?.melee || 0);
+      s.totalRanged += (entry.score.troopCounts?.ranged || 0);
+      s.totalMounted += (entry.score.troopCounts?.mounted || 0);
       s.totalMoney += entry.score.money;
     }
   }
@@ -316,6 +322,9 @@ function renderBatchResults() {
       <td>${avg(s.totalTierB)}</td>
       <td>${avg(s.totalTierC)}</td>
       <td>${avg(s.totalTierR)}</td>
+      <td>${avg(s.totalMelee)}</td>
+      <td>${avg(s.totalRanged)}</td>
+      <td>${avg(s.totalMounted)}</td>
       <td>${avg(s.totalMoney)}</td>
     </tr>`;
   }).join('');
@@ -345,7 +354,7 @@ function renderBatchResults() {
 
         <h3>Summary</h3>
         <table>
-          <thead><tr><th>Player</th><th>Wins</th><th>Avg Score</th><th>Avg Contracts</th><th>Avg Renown</th><th>Avg Sets</th><th>Avg Hunt</th><th>Avg Debt</th><th>Avg Tier A</th><th>Avg Tier B</th><th>Avg Tier C</th><th>Avg Tier R</th><th>Avg Coins</th></tr></thead>
+          <thead><tr><th>Player</th><th>Wins</th><th>Avg Score</th><th>Avg Contracts</th><th>Avg Renown</th><th>Avg Sets</th><th>Avg Hunt</th><th>Avg Debt</th><th>Avg Tier A</th><th>Avg Tier B</th><th>Avg Tier C</th><th>Avg Tier R</th><th>Avg Melee</th><th>Avg Ranged</th><th>Avg Mounted</th><th>Avg Coins</th></tr></thead>
           <tbody>${summaryRows}</tbody>
         </table>
 
