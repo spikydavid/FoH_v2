@@ -10,6 +10,8 @@ const SET_SCORES = {
   6: 15,
 };
 
+const END_GAME_CONTRACT_TARGET = 10;
+
 function uid(prefix = 'id') {
   return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
 }
@@ -1399,13 +1401,63 @@ function autoDrawForAi(game, player) {
   const bonus = player.eventInPlay?.ongoing?.endOfTurnDrawBonus || 0;
   const draws = 2 + bonus;
 
-  // Always draw at least one card from Tier A if available.
-  const tierAOffer = game.offer.A.length > 0 ? 'offer:A' : 'deck:A';
-  drawCardToHand(game, player, tierAOffer);
+  function mostContractsCompleted() {
+    let maxDone = 0;
+    for (const p of game.players) {
+      if (p.scorePile.length > maxDone) maxDone = p.scorePile.length;
+    }
+    return maxDone;
+  }
 
-  for (let i = 1; i < draws; i += 1) {
-    const sources = ['offer:A', 'offer:B', 'offer:C', 'deck:A', 'deck:B', 'deck:C'];
-    drawCardToHand(game, player, sample(sources));
+  function canPlayContractNow(contract) {
+    return canPlayContracts(player, [contract]);
+  }
+
+  function drawPlayableOfferContract(tier) {
+    const offer = game.offer[tier] || [];
+    let bestIndex = -1;
+    let bestScore = -Infinity;
+    for (let i = 0; i < offer.length; i += 1) {
+      const card = offer[i];
+      if (card.kind !== 'contract') continue;
+      if (!canPlayContractNow(card)) continue;
+      const score = card.renown * 2 + card.coins;
+      if (score > bestScore) {
+        bestScore = score;
+        bestIndex = i;
+      }
+    }
+    if (bestIndex < 0) return false;
+    const [picked] = offer.splice(bestIndex, 1);
+    player.hand.push(picked);
+    return true;
+  }
+
+  function drawFromTierDeck(tier) {
+    const card = drawFromDeck(game, 'any', { preferredTier: tier });
+    if (!card) return false;
+    player.hand.push(card);
+    return true;
+  }
+
+  for (let i = 0; i < draws; i += 1) {
+    const leaderContracts = mostContractsCompleted();
+    const over50 = leaderContracts > (END_GAME_CONTRACT_TARGET * 0.5);
+    const over75 = leaderContracts > (END_GAME_CONTRACT_TARGET * 0.75);
+
+    // Offer checks: C always, B before 50%, A before 75%.
+    if (drawPlayableOfferContract('C')) continue;
+    if (!over50 && drawPlayableOfferContract('B')) continue;
+    if (!over75 && drawPlayableOfferContract('A')) continue;
+
+    // Deck fallback by progress through the end-game threshold.
+    if (over75) {
+      drawFromTierDeck('C');
+    } else if (over50) {
+      drawFromTierDeck('B');
+    } else {
+      drawFromTierDeck('A');
+    }
   }
 }
 
@@ -1502,10 +1554,10 @@ function computePlayerScore(player) {
 
 function maybeEndGame(game) {
   const active = game.players[game.currentPlayerIndex];
-  if (!game.startedFinalRound && active.scorePile.length >= 10) {
+  if (!game.startedFinalRound && active.scorePile.length >= END_GAME_CONTRACT_TARGET) {
     game.startedFinalRound = true;
     game.finalRoundIndex = game.currentPlayerIndex;
-    addLog(game, `${active.name} reached 10 contracts. Final round has started.`);
+    addLog(game, `${active.name} reached ${END_GAME_CONTRACT_TARGET} contracts. Final round has started.`);
   }
 }
 
