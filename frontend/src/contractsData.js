@@ -8,7 +8,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 2,
     "title": "Ruin the Ironworks",
-    "coins": 15,
+    "coins": 18,
     "renown": -1,
     "region": "east",
     "type": "devastate",
@@ -24,7 +24,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 2,
     "title": "Boil the Fjords",
-    "coins": 15,
+    "coins": 18,
     "renown": -1,
     "region": "north",
     "type": "devastate",
@@ -40,7 +40,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 2,
     "title": "Poison the Spring",
-    "coins": 15,
+    "coins": 18,
     "renown": -1,
     "region": "south",
     "type": "devastate",
@@ -56,7 +56,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 2,
     "title": "Demolish the Stock Route",
-    "coins": 15,
+    "coins": 18,
     "renown": -1,
     "region": "west",
     "type": "devastate",
@@ -72,7 +72,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 2,
     "title": "Extinguish the Fire Cult",
-    "coins": 11,
+    "coins": 14,
     "renown": 0,
     "region": "east",
     "type": "eliminate",
@@ -88,7 +88,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 2,
     "title": "Eliminate the Northern Raiders",
-    "coins": 11,
+    "coins": 14,
     "renown": 0,
     "region": "north",
     "type": "eliminate",
@@ -104,7 +104,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 2,
     "title": "Eliminate Bandits",
-    "coins": 11,
+    "coins": 14,
     "renown": 0,
     "region": "south",
     "type": "eliminate",
@@ -120,7 +120,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 2,
     "title": "Eliminate the Remnants",
-    "coins": 11,
+    "coins": 14,
     "renown": 0,
     "region": "west",
     "type": "eliminate",
@@ -136,7 +136,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 2,
     "title": "Patrol The Lava Flow",
-    "coins": 12,
+    "coins": 15,
     "renown": 0,
     "region": "east",
     "type": "guard",
@@ -152,7 +152,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 2,
     "title": "Border Patrol",
-    "coins": 12,
+    "coins": 15,
     "renown": 0,
     "region": "north",
     "type": "guard",
@@ -168,7 +168,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 2,
     "title": "Border Patrol",
-    "coins": 12,
+    "coins": 15,
     "renown": 0,
     "region": "south",
     "type": "guard",
@@ -184,7 +184,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 2,
     "title": "Patrol the Wasteland",
-    "coins": 12,
+    "coins": 15,
     "renown": 0,
     "region": "west",
     "type": "guard",
@@ -200,7 +200,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 2,
     "title": "Hunt Fire Scorpions",
-    "coins": 11,
+    "coins": 14,
     "renown": 1,
     "region": "east",
     "type": "hunt",
@@ -216,7 +216,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 2,
     "title": "Hunt Dire Wolves",
-    "coins": 11,
+    "coins": 14,
     "renown": 1,
     "region": "north",
     "type": "hunt",
@@ -232,7 +232,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 2,
     "title": "Hunt Webknechts",
-    "coins": 11,
+    "coins": 14,
     "renown": 1,
     "region": "south",
     "type": "hunt",
@@ -248,7 +248,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 2,
     "title": "Hunt Cogworks",
-    "coins": 11,
+    "coins": 14,
     "renown": 1,
     "region": "west",
     "type": "hunt",
@@ -264,7 +264,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 2,
     "title": "Plunder the Iron Forges",
-    "coins": 16,
+    "coins": 19,
     "renown": -1,
     "region": "east",
     "type": "plunder",
@@ -280,7 +280,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 2,
     "title": "Loot the Longhouses",
-    "coins": 16,
+    "coins": 19,
     "renown": -1,
     "region": "north",
     "type": "plunder",
@@ -296,7 +296,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 2,
     "title": "Strip Supply Lines",
-    "coins": 16,
+    "coins": 19,
     "renown": -1,
     "region": "south",
     "type": "plunder",
@@ -312,7 +312,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 2,
     "title": "Scavenge the Ancient Ruins",
-    "coins": 16,
+    "coins": 19,
     "renown": -1,
     "region": "west",
     "type": "plunder",
@@ -328,7 +328,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 2,
     "title": "Move Iron Through the Wastes",
-    "coins": 14,
+    "coins": 17,
     "renown": 0,
     "region": "east",
     "type": "supply",
@@ -344,7 +344,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 2,
     "title": "Escort Trade Caravan",
-    "coins": 14,
+    "coins": 17,
     "renown": 0,
     "region": "north",
     "type": "supply",
@@ -360,7 +360,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 2,
     "title": "Reconnoitre the Tangle",
-    "coins": 14,
+    "coins": 17,
     "renown": 0,
     "region": "south",
     "type": "supply",
@@ -376,7 +376,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 2,
     "title": "Escort Trade Caravan",
-    "coins": 14,
+    "coins": 17,
     "renown": 0,
     "region": "west",
     "type": "supply",
@@ -392,7 +392,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 2,
     "title": "Befoul the Waterways",
-    "coins": 10,
+    "coins": 13,
     "renown": 2,
     "region": "east",
     "type": "devastate",
@@ -408,7 +408,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 2,
     "title": "Scorch the Farmlands",
-    "coins": 10,
+    "coins": 13,
     "renown": 2,
     "region": "north",
     "type": "devastate",
@@ -424,7 +424,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 2,
     "title": "Cripple the Watchtowers",
-    "coins": 10,
+    "coins": 13,
     "renown": 2,
     "region": "south",
     "type": "devastate",
@@ -440,7 +440,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 2,
     "title": "Burn the Trail Middens",
-    "coins": 10,
+    "coins": 13,
     "renown": 2,
     "region": "west",
     "type": "devastate",
@@ -456,7 +456,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 2,
     "title": "Destroy the Ashen Warband",
-    "coins": 13,
+    "coins": 16,
     "renown": 1,
     "region": "east",
     "type": "eliminate",
@@ -472,7 +472,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 2,
     "title": "Break the Shield Warriors",
-    "coins": 13,
+    "coins": 16,
     "renown": 1,
     "region": "north",
     "type": "eliminate",
@@ -488,7 +488,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 2,
     "title": "Ambush the Robber Band",
-    "coins": 13,
+    "coins": 16,
     "renown": 1,
     "region": "south",
     "type": "eliminate",
@@ -504,7 +504,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 2,
     "title": "Destroy the Dust Raiders",
-    "coins": 13,
+    "coins": 16,
     "renown": 1,
     "region": "west",
     "type": "eliminate",
@@ -520,7 +520,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 2,
     "title": "Defend the Smelting Yards",
-    "coins": 8,
+    "coins": 11,
     "renown": 3,
     "region": "east",
     "type": "guard",
@@ -536,7 +536,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 2,
     "title": "Defend the Fjordland Pass",
-    "coins": 8,
+    "coins": 11,
     "renown": 3,
     "region": "north",
     "type": "guard",
@@ -552,7 +552,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 2,
     "title": "Hold the Forest Outpost",
-    "coins": 8,
+    "coins": 11,
     "renown": 3,
     "region": "south",
     "type": "guard",
@@ -568,7 +568,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 2,
     "title": "Train Insurgents",
-    "coins": 8,
+    "coins": 11,
     "renown": 3,
     "region": "west",
     "type": "guard",
@@ -584,7 +584,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 2,
     "title": "Hunt Magma Beetles",
-    "coins": 9,
+    "coins": 12,
     "renown": 3,
     "region": "east",
     "type": "hunt",
@@ -600,7 +600,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 2,
     "title": "Hunt Yeti",
-    "coins": 9,
+    "coins": 12,
     "renown": 3,
     "region": "north",
     "type": "hunt",
@@ -616,7 +616,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 2,
     "title": "Hunt Mire Beasts",
-    "coins": 9,
+    "coins": 12,
     "renown": 3,
     "region": "south",
     "type": "hunt",
@@ -632,7 +632,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 2,
     "title": "Hunt Ornithopters",
-    "coins": 9,
+    "coins": 12,
     "renown": 3,
     "region": "west",
     "type": "hunt",
@@ -648,7 +648,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 2,
     "title": "Ravage the Workshops",
-    "coins": 12,
+    "coins": 15,
     "renown": 2,
     "region": "east",
     "type": "plunder",
@@ -664,7 +664,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 2,
     "title": "Ravage the Coastal Hamlets",
-    "coins": 12,
+    "coins": 15,
     "renown": 2,
     "region": "north",
     "type": "plunder",
@@ -680,7 +680,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 2,
     "title": "Ravage the River Towns",
-    "coins": 12,
+    "coins": 15,
     "renown": 2,
     "region": "south",
     "type": "plunder",
@@ -696,7 +696,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 2,
     "title": "Loot the Broken Vaults",
-    "coins": 12,
+    "coins": 15,
     "renown": 2,
     "region": "west",
     "type": "plunder",
@@ -712,7 +712,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 2,
     "title": "Escort the Powder Train",
-    "coins": 10,
+    "coins": 13,
     "renown": 3,
     "region": "east",
     "type": "supply",
@@ -728,7 +728,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 2,
     "title": "Supply the Smokehouses",
-    "coins": 10,
+    "coins": 13,
     "renown": 3,
     "region": "north",
     "type": "supply",
@@ -744,7 +744,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 2,
     "title": "Escort the River Barges",
-    "coins": 10,
+    "coins": 13,
     "renown": 3,
     "region": "south",
     "type": "supply",
@@ -760,7 +760,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 2,
     "title": "Secure the Stockroute",
-    "coins": 10,
+    "coins": 13,
     "renown": 3,
     "region": "west",
     "type": "supply",
@@ -776,7 +776,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 1,
     "title": "Shatter the Kilns",
-    "coins": 5,
+    "coins": 8,
     "renown": 5,
     "region": "east",
     "type": "devastate",
@@ -792,7 +792,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 1,
     "title": "Flood the Lava Channels",
-    "coins": 9,
+    "coins": 12,
     "renown": 4,
     "region": "east",
     "type": "devastate",
@@ -808,7 +808,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 1,
     "title": "Break the Ice Bridges",
-    "coins": 4,
+    "coins": 7,
     "renown": 6,
     "region": "north",
     "type": "devastate",
@@ -824,7 +824,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 1,
     "title": "Burn the Longships",
-    "coins": 7,
+    "coins": 10,
     "renown": 5,
     "region": "north",
     "type": "devastate",
@@ -840,7 +840,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 1,
     "title": "Scorch the Clearing Settlements",
-    "coins": 5,
+    "coins": 8,
     "renown": 6,
     "region": "south",
     "type": "devastate",
@@ -856,7 +856,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 1,
     "title": "Ruin the Grain Stores",
-    "coins": 6,
+    "coins": 9,
     "renown": 6,
     "region": "south",
     "type": "devastate",
@@ -872,7 +872,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 1,
     "title": "Remove the Ash Ward",
-    "coins": 3,
+    "coins": 6,
     "renown": 7,
     "region": "west",
     "type": "devastate",
@@ -888,7 +888,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 1,
     "title": "Terrorise the Herd Drivers",
-    "coins": 4,
+    "coins": 7,
     "renown": 7,
     "region": "west",
     "type": "devastate",
@@ -904,7 +904,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 1,
     "title": "Eliminate the Overseer",
-    "coins": 5,
+    "coins": 8,
     "renown": 5,
     "region": "east",
     "type": "eliminate",
@@ -920,7 +920,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 1,
     "title": "Break the Furnace Guard",
-    "coins": 6,
+    "coins": 9,
     "renown": 5,
     "region": "east",
     "type": "eliminate",
@@ -936,7 +936,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 1,
     "title": "Slay the Barbarian King",
-    "coins": 7,
+    "coins": 10,
     "renown": 5,
     "region": "north",
     "type": "eliminate",
@@ -952,7 +952,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 1,
     "title": "Crush the Coastal Reavers",
-    "coins": 4,
+    "coins": 7,
     "renown": 6,
     "region": "north",
     "type": "eliminate",
@@ -968,7 +968,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 1,
     "title": "Crush the Outlaw Band",
-    "coins": 5,
+    "coins": 8,
     "renown": 6,
     "region": "south",
     "type": "eliminate",
@@ -984,7 +984,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 1,
     "title": "Break the Greencloak Company",
-    "coins": 6,
+    "coins": 9,
     "renown": 6,
     "region": "south",
     "type": "eliminate",
@@ -1000,7 +1000,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 1,
     "title": "Slay the Outland Captain",
-    "coins": 3,
+    "coins": 6,
     "renown": 7,
     "region": "west",
     "type": "eliminate",
@@ -1016,7 +1016,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 1,
     "title": "Destroy the Scavenger Host",
-    "coins": 4,
+    "coins": 7,
     "renown": 7,
     "region": "west",
     "type": "eliminate",
@@ -1032,7 +1032,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 1,
     "title": "Defend the Cinder Pass",
-    "coins": 5,
+    "coins": 8,
     "renown": 5,
     "region": "east",
     "type": "guard",
@@ -1048,7 +1048,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 1,
     "title": "Protect the Emberheart",
-    "coins": 6,
+    "coins": 9,
     "renown": 5,
     "region": "east",
     "type": "guard",
@@ -1064,7 +1064,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 1,
     "title": "Hold the Mountain Pass",
-    "coins": 7,
+    "coins": 10,
     "renown": 5,
     "region": "north",
     "type": "guard",
@@ -1080,7 +1080,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 1,
     "title": "Protect the Timber Camps",
-    "coins": 4,
+    "coins": 7,
     "renown": 6,
     "region": "north",
     "type": "guard",
@@ -1096,7 +1096,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 1,
     "title": "Defend the Old Oak",
-    "coins": 5,
+    "coins": 8,
     "renown": 6,
     "region": "south",
     "type": "guard",
@@ -1112,7 +1112,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 1,
     "title": "Hold the Ferry Crossing",
-    "coins": 6,
+    "coins": 9,
     "renown": 6,
     "region": "south",
     "type": "guard",
@@ -1128,7 +1128,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 1,
     "title": "Protect the Herd Drivers",
-    "coins": 3,
+    "coins": 6,
     "renown": 7,
     "region": "west",
     "type": "guard",
@@ -1144,7 +1144,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 1,
     "title": "Guard the Heirloom Vault",
-    "coins": 16,
+    "coins": 19,
     "renown": 6,
     "region": "west",
     "type": "guard",
@@ -1160,7 +1160,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 1,
     "title": "Hunt the Ash Wyrm",
-    "coins": 5,
+    "coins": 8,
     "renown": 5,
     "region": "east",
     "type": "hunt",
@@ -1176,7 +1176,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 1,
     "title": "Hunt the Fire Giant",
-    "coins": 6,
+    "coins": 9,
     "renown": 5,
     "region": "east",
     "type": "hunt",
@@ -1192,7 +1192,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 1,
     "title": "Hunt The Fjord Serpent",
-    "coins": 7,
+    "coins": 10,
     "renown": 5,
     "region": "north",
     "type": "hunt",
@@ -1208,7 +1208,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 1,
     "title": "Hunt The Frost Troll",
-    "coins": 4,
+    "coins": 7,
     "renown": 6,
     "region": "north",
     "type": "hunt",
@@ -1224,7 +1224,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 1,
     "title": "Hunt the Hag",
-    "coins": 5,
+    "coins": 8,
     "renown": 6,
     "region": "south",
     "type": "hunt",
@@ -1240,7 +1240,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 1,
     "title": "Hunt the Canopy Stalker",
-    "coins": 6,
+    "coins": 9,
     "renown": 6,
     "region": "south",
     "type": "hunt",
@@ -1256,7 +1256,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 1,
     "title": "Hunt Junk Colossus",
-    "coins": 3,
+    "coins": 6,
     "renown": 7,
     "region": "west",
     "type": "hunt",
@@ -1272,7 +1272,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 1,
     "title": "Hunt the Warden",
-    "coins": 4,
+    "coins": 7,
     "renown": 7,
     "region": "west",
     "type": "hunt",
@@ -1288,7 +1288,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 1,
     "title": "Seize the Iron Shipment",
-    "coins": 5,
+    "coins": 8,
     "renown": 5,
     "region": "east",
     "type": "plunder",
@@ -1304,7 +1304,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 1,
     "title": "Plunder the Cinder Market",
-    "coins": 6,
+    "coins": 9,
     "renown": 5,
     "region": "east",
     "type": "plunder",
@@ -1320,7 +1320,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 1,
     "title": "Strip the Shipyards",
-    "coins": 6,
+    "coins": 9,
     "renown": 5,
     "region": "north",
     "type": "plunder",
@@ -1336,7 +1336,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 1,
     "title": "Raid the Fishing Fleets",
-    "coins": 4,
+    "coins": 7,
     "renown": 6,
     "region": "north",
     "type": "plunder",
@@ -1352,7 +1352,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 1,
     "title": "Seize the Grain Convoy",
-    "coins": 4,
+    "coins": 7,
     "renown": 6,
     "region": "south",
     "type": "plunder",
@@ -1368,7 +1368,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 1,
     "title": "Seize the Smugglers' Cache",
-    "coins": 6,
+    "coins": 9,
     "renown": 6,
     "region": "south",
     "type": "plunder",
@@ -1384,7 +1384,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 1,
     "title": "Recover Lost Artefacts",
-    "coins": 4,
+    "coins": 7,
     "renown": 7,
     "region": "west",
     "type": "plunder",
@@ -1400,7 +1400,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 1,
     "title": "Seize the Relic Cache",
-    "coins": 3,
+    "coins": 6,
     "renown": 7,
     "region": "west",
     "type": "plunder",
@@ -1416,7 +1416,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 1,
     "title": "Reopen the Cinder Pass",
-    "coins": 5,
+    "coins": 8,
     "renown": 5,
     "region": "east",
     "type": "supply",
@@ -1432,7 +1432,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 1,
     "title": "Deliver to the Workshops",
-    "coins": 5,
+    "coins": 8,
     "renown": 5,
     "region": "east",
     "type": "supply",
@@ -1448,7 +1448,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 1,
     "title": "Move Timber down the Fjords",
-    "coins": 6,
+    "coins": 9,
     "renown": 5,
     "region": "north",
     "type": "supply",
@@ -1464,7 +1464,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 1,
     "title": "Deliver the the Shipyards",
-    "coins": 4,
+    "coins": 7,
     "renown": 6,
     "region": "north",
     "type": "supply",
@@ -1480,7 +1480,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 1,
     "title": "Deliver to the Outposts",
-    "coins": 4,
+    "coins": 7,
     "renown": 6,
     "region": "south",
     "type": "supply",
@@ -1496,7 +1496,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 1,
     "title": "Move Supplies through the Tangle",
-    "coins": 5,
+    "coins": 8,
     "renown": 6,
     "region": "south",
     "type": "supply",
@@ -1512,7 +1512,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 1,
     "title": "Supply the Vault",
-    "coins": 3,
+    "coins": 6,
     "renown": 7,
     "region": "west",
     "type": "supply",
@@ -1528,7 +1528,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 1,
     "title": "Escort the Scrap Haulers",
-    "coins": 3,
+    "coins": 6,
     "renown": 7,
     "region": "west",
     "type": "supply",
@@ -1544,7 +1544,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 1,
     "title": "The King's Contract",
-    "coins": 3,
+    "coins": 6,
     "renown": 9,
     "region": "any",
     "type": "devastate",
@@ -1560,7 +1560,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 4,
     "title": "Incense Delivery Escort",
-    "coins": 12,
+    "coins": 15,
     "renown": 2,
     "region": "any",
     "type": "supply",
@@ -1576,7 +1576,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 4,
     "title": "Beast Hunt",
-    "coins": 12,
+    "coins": 15,
     "renown": 2,
     "region": "any",
     "type": "hunt",
@@ -1592,7 +1592,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 4,
     "title": "Rich Caravan Loot",
-    "coins": 12,
+    "coins": 15,
     "renown": 0,
     "region": "any",
     "type": "plunder",
@@ -1608,7 +1608,7 @@ export const CONTRACT_CARDS = [
   {
     "copies": 4,
     "title": "Head Money",
-    "coins": 8,
+    "coins": 11,
     "renown": 3,
     "region": "any",
     "type": "eliminate",
