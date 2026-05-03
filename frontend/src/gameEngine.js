@@ -17,7 +17,7 @@ const SIM_HARD_SAFETY = 2000;
 const AI_MARKET_MODELS = [
   {
     id: 'aggressive',
-    renownWeight: 2.6,
+    renownWeight: 7.8,
     coinWeight: 1.1,
     setPotentialWeight: 1.0,
     huntPotentialWeight: 1.2,
@@ -28,7 +28,7 @@ const AI_MARKET_MODELS = [
   },
   {
     id: 'forward',
-    renownWeight: 2.3,
+    renownWeight: 6.9,
     coinWeight: 1.0,
     setPotentialWeight: 0.9,
     huntPotentialWeight: 1.0,
@@ -39,7 +39,7 @@ const AI_MARKET_MODELS = [
   },
   {
     id: 'steady',
-    renownWeight: 2.0,
+    renownWeight: 6.0,
     coinWeight: 1.0,
     setPotentialWeight: 0.8,
     huntPotentialWeight: 0.9,
@@ -50,7 +50,7 @@ const AI_MARKET_MODELS = [
   },
   {
     id: 'conservative',
-    renownWeight: 1.7,
+    renownWeight: 5.1,
     coinWeight: 1.0,
     setPotentialWeight: 0.7,
     huntPotentialWeight: 0.8,
