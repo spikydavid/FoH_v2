@@ -12,6 +12,55 @@ const SET_SCORES = {
 
 const END_GAME_CONTRACT_TARGET = 10;
 
+const AI_MARKET_MODELS = [
+  {
+    id: 'aggressive',
+    renownWeight: 2.6,
+    coinWeight: 1.1,
+    setPotentialWeight: 1.0,
+    huntPotentialWeight: 1.2,
+    campaignCostWeight: 0.8,
+    troopCostWeight: 0.55,
+    debtPenaltyWeight: 0.65,
+    loanThreshold: 0.4,
+  },
+  {
+    id: 'forward',
+    renownWeight: 2.3,
+    coinWeight: 1.0,
+    setPotentialWeight: 0.9,
+    huntPotentialWeight: 1.0,
+    campaignCostWeight: 1.0,
+    troopCostWeight: 0.75,
+    debtPenaltyWeight: 0.85,
+    loanThreshold: 0.8,
+  },
+  {
+    id: 'steady',
+    renownWeight: 2.0,
+    coinWeight: 1.0,
+    setPotentialWeight: 0.8,
+    huntPotentialWeight: 0.9,
+    campaignCostWeight: 1.1,
+    troopCostWeight: 0.95,
+    debtPenaltyWeight: 1.0,
+    loanThreshold: 1.0,
+  },
+  {
+    id: 'conservative',
+    renownWeight: 1.7,
+    coinWeight: 1.0,
+    setPotentialWeight: 0.7,
+    huntPotentialWeight: 0.8,
+    campaignCostWeight: 1.25,
+    troopCostWeight: 1.2,
+    debtPenaltyWeight: 1.25,
+    loanThreshold: 1.3,
+  },
+];
+
+const DEFAULT_AI_MARKET_MODEL = AI_MARKET_MODELS[2];
+
 function uid(prefix = 'id') {
   return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
 }
@@ -51,6 +100,36 @@ function addTroops(target, source) {
   target.melee += source.melee || 0;
   target.ranged += source.ranged || 0;
   target.mounted += source.mounted || 0;
+}
+
+function modelForSeat(playerIndex, playerCount) {
+  if (playerCount <= 1) return AI_MARKET_MODELS[0];
+  const maxIdx = AI_MARKET_MODELS.length - 1;
+  const scaled = Math.round((playerIndex * maxIdx) / (playerCount - 1));
+  return AI_MARKET_MODELS[Math.max(0, Math.min(maxIdx, scaled))];
+}
+
+function assignAiModels(players, config) {
+  const hasHuman = (config.humanPlayers || 0) > 0;
+  const isBatch = Boolean(config.batchSimulation);
+
+  for (let i = 0; i < players.length; i += 1) {
+    const player = players[i];
+    if (player.isHuman) {
+      player.aiModel = null;
+      continue;
+    }
+
+    if (isBatch) {
+      // Batch: Player 1 most aggressive .. Player 4 most conservative.
+      player.aiModel = modelForSeat(i, players.length);
+    } else if (hasHuman) {
+      // Human games: random AI model once at game start.
+      player.aiModel = sample(AI_MARKET_MODELS);
+    } else {
+      player.aiModel = DEFAULT_AI_MARKET_MODEL;
+    }
+  }
 }
 
 function canAfford(player, amount) {
@@ -563,6 +642,7 @@ function newPlayer(name, isHuman) {
     hand: [],
     eventInPlay: null,
     scorePile: [],
+    aiModel: null,
     turnsTaken: 0,
     campaignsRun: 0,
     totalContractsSelected: 0,
@@ -636,6 +716,7 @@ function createInitialGame(config) {
   for (let i = 0; i < config.playerCount; i += 1) {
     players.push(newPlayer(`Player ${i + 1}`, i < config.humanPlayers));
   }
+  assignAiModels(players, config);
 
   const game = {
     mode: config.mode,
@@ -1467,24 +1548,176 @@ function autoDrawForAi(game, player) {
   }
 }
 
-function playAiMarket(game, player) {
-  if (mayTakeLoan(player) && Math.random() > 0.45) {
-    player.money += 10;
-    player.debts += 1;
-    addLog(game, `${player.name} took a loan.`);
+function getCampaignDiscount(player) {
+  const specialistDiscount = countSpecialist(player, 'Forager') + (2 * countSpecialist(player, 'Cook'));
+  const eventCostDelta = player.eventInPlay?.ongoing?.campaignCostDelta || 0;
+  return specialistDiscount - eventCostDelta;
+}
+
+function estimateTroopPurchasePlan(game, player, contracts) {
+  const req = emptyTroops();
+  for (const card of contracts) {
+    req.melee += card.requirements.melee;
+    req.ranged += card.requirements.ranged;
+    req.mounted += card.requirements.mounted;
   }
 
-  const specialistCards = player.hand.filter((card) => card.kind === 'specialist');
-  for (const card of specialistCards) {
-    if (player.retinue.length >= 3) break;
-    if (canAfford(player, card.cost)) {
-      player.money -= card.cost;
-      player.retinue.push(card);
-      player.hand = player.hand.filter((c) => c.id !== card.id);
-      addLog(game, `${player.name} hired specialist ${card.name}.`);
-      applySpecialistOnHire(game, player, card);
+  const deficits = {
+    melee: Math.max(0, req.melee - player.troops.melee),
+    ranged: Math.max(0, req.ranged - player.troops.ranged),
+    mounted: Math.max(0, req.mounted - player.troops.mounted),
+  };
+
+  const plan = [];
+  let cost = 0;
+
+  const take = (source, type, amount, unitCost) => {
+    if (amount <= 0) return 0;
+    const available = source === 'market' ? game.market[type] : game.supply[type];
+    const qty = Math.min(amount, available);
+    if (qty > 0) {
+      plan.push({ source, type, qty, unitCost });
+      cost += qty * unitCost;
+    }
+    return qty;
+  };
+
+  for (const type of ['melee', 'ranged', 'mounted']) {
+    const marketCost = type === 'melee' ? 2 : type === 'ranged' ? 3 : 4;
+    const supplyCost = marketCost * 2;
+    let remaining = deficits[type];
+    remaining -= take('market', type, remaining, marketCost);
+    remaining -= take('supply', type, remaining, supplyCost);
+    if (remaining > 0) return null;
+  }
+
+  return { plan, cost };
+}
+
+function bestAiCampaignPlan(game, player, moneyAvailable, model) {
+  const contracts = player.hand.filter((c) => c.kind === 'contract');
+  const n = contracts.length;
+  if (n === 0) return null;
+
+  const discount = getCampaignDiscount(player);
+  const trophyMakers = countSpecialist(player, 'Trophy Maker');
+
+  let best = null;
+
+  function consider(bundle) {
+    const troopPlan = estimateTroopPurchasePlan(game, player, bundle);
+    if (!troopPlan) return;
+
+    const campaignCost = contractCost(bundle, discount);
+    const totalSpend = troopPlan.cost + campaignCost;
+    if (totalSpend > moneyAvailable) return;
+
+    const baseValue = bundle.reduce((sum, c) => (
+      sum + (c.renown * model.renownWeight) + (c.coins * model.coinWeight)
+    ), 0);
+    const typeCount = new Set(bundle.map((c) => c.type)).size;
+    const huntCount = bundle.filter((c) => c.type === 'hunt').length;
+    const value = baseValue
+      + (typeCount * model.setPotentialWeight)
+      + (huntCount * trophyMakers * model.huntPotentialWeight)
+      - (campaignCost * model.campaignCostWeight)
+      - (troopPlan.cost * model.troopCostWeight);
+
+    if (
+      !best ||
+      value > best.value ||
+      (value === best.value && totalSpend < best.totalSpend) ||
+      (value === best.value && totalSpend === best.totalSpend && bundle.length > best.bundle.length)
+    ) {
+      best = { bundle, troopPlan, campaignCost, totalSpend, value };
     }
   }
+
+  for (let i = 0; i < n; i += 1) {
+    consider([contracts[i]]);
+    for (let j = i + 1; j < n; j += 1) {
+      consider([contracts[i], contracts[j]]);
+      for (let k = j + 1; k < n; k += 1) {
+        consider([contracts[i], contracts[j], contracts[k]]);
+      }
+    }
+  }
+
+  return best;
+}
+
+function executeTroopPurchasePlan(game, player, troopPlan) {
+  for (const step of troopPlan.plan) {
+    for (let i = 0; i < step.qty; i += 1) {
+      if (player.money < step.unitCost) return;
+      const pool = step.source === 'market' ? game.market : game.supply;
+      if (pool[step.type] <= 0) return;
+      pool[step.type] -= 1;
+      player.troops[step.type] += 1;
+      player.money -= step.unitCost;
+    }
+  }
+}
+
+function playAiMarket(game, player) {
+  const model = player.aiModel || DEFAULT_AI_MARKET_MODEL;
+
+  const maybeNoLoanPlan = bestAiCampaignPlan(game, player, player.money, model);
+  if (mayTakeLoan(player)) {
+    const maybeLoanPlan = bestAiCampaignPlan(game, player, player.money + 10, model);
+    const noLoanScore = maybeNoLoanPlan ? maybeNoLoanPlan.value : -Infinity;
+    const loanScore = maybeLoanPlan ? (maybeLoanPlan.value - (6 * model.debtPenaltyWeight)) : -Infinity;
+    if (loanScore > noLoanScore + model.loanThreshold) {
+      player.money += 10;
+      player.debts += 1;
+      addLog(game, `${player.name} took a loan.`);
+    }
+  }
+
+  const specialistPriority = {
+    Forager: 100,
+    Cook: 95,
+    Paymaster: 75,
+    'Trophy Maker': 75,
+    Blacksmith: 60,
+    Carpenter: 60,
+    'Former Stablehand': 55,
+    'Dockside Thug': 55,
+    'Guard Recruiter': 55,
+    'Veteran Archer': 55,
+  };
+
+  const specialistCards = player.hand
+    .filter((card) => card.kind === 'specialist')
+    .sort((a, b) => {
+      const pA = specialistPriority[a.name] || 0;
+      const pB = specialistPriority[b.name] || 0;
+      if (pA !== pB) return pB - pA;
+      return a.cost - b.cost;
+    });
+
+  for (const card of specialistCards) {
+    if (player.retinue.length >= 3) break;
+    if (!canAfford(player, card.cost)) continue;
+
+    const isCostReducer = card.name === 'Forager' || card.name === 'Cook';
+    const planBeforeHire = bestAiCampaignPlan(game, player, player.money, model);
+    const reserve = planBeforeHire ? planBeforeHire.totalSpend : 0;
+    if (!isCostReducer && player.money - card.cost < reserve) continue;
+
+    player.money -= card.cost;
+    player.retinue.push(card);
+    player.hand = player.hand.filter((c) => c.id !== card.id);
+    addLog(game, `${player.name} hired specialist ${card.name}.`);
+    applySpecialistOnHire(game, player, card);
+  }
+
+  const bestPlan = bestAiCampaignPlan(game, player, player.money, model);
+  if (bestPlan) {
+    executeTroopPurchasePlan(game, player, bestPlan.troopPlan);
+  }
+
+  const reserveForCampaign = bestPlan ? contractCost(bestPlan.bundle, getCampaignDiscount(player)) : 0;
 
   const buyOrder = [
     { source: 'market', type: 'melee', cost: 2 },
@@ -1496,20 +1729,20 @@ function playAiMarket(game, player) {
   ];
 
   for (const buy of buyOrder) {
-    if (player.money < buy.cost) continue;
+    if (player.money - buy.cost < reserveForCampaign) continue;
     if (buy.source === 'market' && game.market[buy.type] > 0) {
       game.market[buy.type] -= 1;
       player.troops[buy.type] += 1;
       player.money -= buy.cost;
     }
-    if (buy.source === 'supply' && game.supply[buy.type] > 0 && player.money >= buy.cost) {
+    if (buy.source === 'supply' && game.supply[buy.type] > 0 && player.money - buy.cost >= reserveForCampaign) {
       game.supply[buy.type] -= 1;
       player.troops[buy.type] += 1;
       player.money -= buy.cost;
     }
   }
 
-  while (player.money >= 1 && game.armoury > 0 && player.equipment < 6) {
+  while (player.money - 1 >= reserveForCampaign && game.armoury > 0 && player.equipment < 6) {
     player.money -= 1;
     gainEquipment(game, player, 1);
   }
@@ -1678,7 +1911,7 @@ export function runSimulation(game) {
 export function runMultipleSimulations(config, count) {
   const results = [];
   for (let i = 0; i < count; i++) {
-    const g = createInitialGame({ ...config, mode: 'simulation', humanPlayers: 0 });
+    const g = createInitialGame({ ...config, mode: 'simulation', humanPlayers: 0, batchSimulation: true });
     g.phase = 'event';
     let safety = 0;
     while (!g.isFinished && safety < 2000) {
