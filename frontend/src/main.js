@@ -289,6 +289,16 @@ function renderBatchResults() {
 
   const avg = (total) => (total / n).toFixed(1);
   const pct = (wins) => ((wins / n) * 100).toFixed(1);
+  const chartPlayerNames = [...playerNames].sort((a, b) => {
+    const aNum = Number((a.match(/\d+/) || [])[0]);
+    const bNum = Number((b.match(/\d+/) || [])[0]);
+    const aHasNum = Number.isFinite(aNum);
+    const bHasNum = Number.isFinite(bNum);
+    if (aHasNum && bHasNum) return aNum - bNum;
+    if (aHasNum) return -1;
+    if (bHasNum) return 1;
+    return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+  });
 
   // Summary table
   const summaryRows = playerNames.map((name) => {
@@ -341,7 +351,7 @@ function renderBatchResults() {
 
         <h3>Win Rate Chart</h3>
         <div class="batch-bars">
-          ${playerNames.map((name) => {
+          ${chartPlayerNames.map((name) => {
             const winPct = (playerStats[name].wins / n) * 100;
             return `<div class="batch-bar-row">
               <span class="batch-bar-label">${name}</span>
