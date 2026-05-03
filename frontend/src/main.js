@@ -336,6 +336,63 @@ function renderBatchResults() {
     }
   }
 
+  // Average board state after each turn across all simulations.
+  const turnAgg = [];
+  for (const result of results) {
+    const states = result.turnStates || [];
+    for (let i = 0; i < states.length; i += 1) {
+      const st = states[i];
+      if (!turnAgg[i]) {
+        turnAgg[i] = {
+          count: 0,
+          marketMelee: 0,
+          marketRanged: 0,
+          marketMounted: 0,
+          bagMelee: 0,
+          bagRanged: 0,
+          bagMounted: 0,
+          supplyMelee: 0,
+          supplyRanged: 0,
+          supplyMounted: 0,
+        };
+      }
+      const a = turnAgg[i];
+      a.count += 1;
+      a.marketMelee += st.market?.melee || 0;
+      a.marketRanged += st.market?.ranged || 0;
+      a.marketMounted += st.market?.mounted || 0;
+      a.bagMelee += st.bag?.melee || 0;
+      a.bagRanged += st.bag?.ranged || 0;
+      a.bagMounted += st.bag?.mounted || 0;
+      a.supplyMelee += st.supply?.melee || 0;
+      a.supplyRanged += st.supply?.ranged || 0;
+      a.supplyMounted += st.supply?.mounted || 0;
+    }
+  }
+
+  const avgTurnRows = turnAgg.map((a, i) => {
+    const denom = a.count || 1;
+    const mM = (a.marketMelee / denom).toFixed(2);
+    const mR = (a.marketRanged / denom).toFixed(2);
+    const mMo = (a.marketMounted / denom).toFixed(2);
+    const bM = (a.bagMelee / denom).toFixed(2);
+    const bR = (a.bagRanged / denom).toFixed(2);
+    const bMo = (a.bagMounted / denom).toFixed(2);
+    const sM = (a.supplyMelee / denom).toFixed(2);
+    const sR = (a.supplyRanged / denom).toFixed(2);
+    const sMo = (a.supplyMounted / denom).toFixed(2);
+    const marketTotal = ((a.marketMelee + a.marketRanged + a.marketMounted) / denom).toFixed(2);
+    const bagTotal = ((a.bagMelee + a.bagRanged + a.bagMounted) / denom).toFixed(2);
+    const supplyTotal = ((a.supplyMelee + a.supplyRanged + a.supplyMounted) / denom).toFixed(2);
+    return `<tr>
+      <td>${i + 1}</td>
+      <td>${mM}</td><td>${mR}</td><td>${mMo}</td><td>${marketTotal}</td>
+      <td>${bM}</td><td>${bR}</td><td>${bMo}</td><td>${bagTotal}</td>
+      <td>${sM}</td><td>${sR}</td><td>${sMo}</td><td>${supplyTotal}</td>
+      <td>${a.count}</td>
+    </tr>`;
+  }).join('');
+
   const avg = (total) => (total / n).toFixed(1);
   const pct = (wins) => ((wins / n) * 100).toFixed(1);
   const chartPlayerNames = [...playerNames].sort((a, b) => {
@@ -389,23 +446,6 @@ function renderBatchResults() {
     </tr>`;
   }).join('');
 
-  // Per-game results table (most recent 200 shown if large batch)
-  const shown = results.slice(0, 200);
-  const gameRows = shown.map((result) => {
-    const cells = result.ranking.map((entry, idx) => {
-      const medal = idx === 0 ? '🥇 ' : idx === 1 ? '🥈 ' : idx === 2 ? '🥉 ' : '';
-      const s = entry.score;
-      const tiers = s.tierCounts || { A: 0, B: 0, C: 0, R: 0 };
-      return `<td class="${idx === 0 ? 'batch-winner' : ''}">
-        ${medal}<strong>${entry.name}</strong><br>
-        <span class="meta">Total: ${s.total} | Contracts: ${s.contracts} (A${tiers.A}/B${tiers.B}/C${tiers.C}/R${tiers.R}) | Renown: ${s.contractRenown} | Sets: ${s.setBonus}${s.huntBonus ? ` | Hunt: ${s.huntBonus}` : ''} | Debt: -${s.debtPenalty} | Coins: ${s.money}</span>
-      </td>`;
-    }).join('');
-    return `<tr><td class="meta">#${result.gameIndex} (${result.rounds}r)</td>${cells}</tr>`;
-  }).join('');
-
-  const placeHeaders = results[0].ranking.map((_, i) => `<th>${i === 0 ? '1st' : i === 1 ? '2nd' : i === 2 ? '3rd' : `${i + 1}th`}</th>`).join('');
-
   app.innerHTML = `
     <main class="layout">
       <section class="panel">
@@ -438,11 +478,20 @@ function renderBatchResults() {
           }).join('')}
         </div>
 
-        <h3>Per-Game Results ${n > 200 ? `(first 200 of ${n} shown)` : ''}</h3>
+        <h3>Average Game State By Turn</h3>
+        <p class="meta">Averages are taken after each player turn. Samples drop on later turns as games finish.</p>
         <div class="batch-table-scroll">
           <table>
-            <thead><tr><th>Game</th>${placeHeaders}</tr></thead>
-            <tbody>${gameRows}</tbody>
+            <thead>
+              <tr>
+                <th>Turn</th>
+                <th>Mkt M</th><th>Mkt R</th><th>Mkt Mo</th><th>Mkt Total</th>
+                <th>Bag M</th><th>Bag R</th><th>Bag Mo</th><th>Bag Total</th>
+                <th>Sup M</th><th>Sup R</th><th>Sup Mo</th><th>Sup Total</th>
+                <th>Samples</th>
+              </tr>
+            </thead>
+            <tbody>${avgTurnRows}</tbody>
           </table>
         </div>
       </section>

@@ -1920,7 +1920,12 @@ export function runSimulation(game) {
 /**
  * Run `count` independent simulations and return an array of result objects,
  * one per game. Each result has:
- *   { gameIndex, rounds, ranking: [{ place, name, score: { total, contractRenown, setBonus, huntBonus, debtPenalty, contracts, tierCounts, troopCounts, turns, contractsPerCampaign, money } }] }
+ *   {
+ *     gameIndex,
+ *     rounds,
+ *     ranking: [{ place, name, score: { total, contractRenown, setBonus, huntBonus, debtPenalty, contracts, tierCounts, troopCounts, turns, contractsPerCampaign, money } }],
+ *     turnStates: [{ turn, market, bag, supply }]
+ *   }
  */
 export function runMultipleSimulations(config, count) {
   const results = [];
@@ -1928,9 +1933,16 @@ export function runMultipleSimulations(config, count) {
     const g = createInitialGame({ ...config, mode: 'simulation', humanPlayers: 0, batchSimulation: true });
     g.phase = 'event';
     let safety = 0;
+    const turnStates = [];
     while (!g.isFinished && safety < 2000) {
       runAiTurn(g);
       safety += 1;
+      turnStates.push({
+        turn: safety,
+        market: { melee: g.market.melee, ranged: g.market.ranged, mounted: g.market.mounted },
+        bag: { melee: g.bag.melee, ranged: g.bag.ranged, mounted: g.bag.mounted },
+        supply: { melee: g.supply.melee, ranged: g.supply.ranged, mounted: g.supply.mounted },
+      });
     }
     if (!g.isFinished) {
       g.isFinished = true;
@@ -1941,7 +1953,7 @@ export function runMultipleSimulations(config, count) {
       name: entry.player.name,
       score: entry.score,
     }));
-    results.push({ gameIndex: i + 1, rounds: g.round, ranking });
+    results.push({ gameIndex: i + 1, rounds: g.round, ranking, turnStates });
   }
   return results;
 }
