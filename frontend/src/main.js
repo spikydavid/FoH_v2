@@ -129,7 +129,7 @@ function renderStartScreen() {
             <input id="human-count" type="number" min="0" max="4" value="1" />
           </label>
           <label>Batch runs
-            <input id="batch-count" type="number" min="1" max="1000" value="100" />
+            <input id="batch-count" type="number" min="1" max="1000" value="1000" />
           </label>
         </form>
       </section>
@@ -161,7 +161,7 @@ function renderStartScreen() {
 
   document.querySelector('#start-batch').addEventListener('click', () => {
     const playerCount = Math.max(2, Math.min(4, Number(playersInput.value) || 4));
-    const batchCount = Math.max(1, Math.min(1000, Number(document.querySelector('#batch-count').value) || 100));
+    const batchCount = Math.max(1, Math.min(1000, Number(document.querySelector('#batch-count').value) || 1000));
     runBatchWithProgress({ playerCount }, batchCount);
   });
 
@@ -250,32 +250,33 @@ function renderBatchResults() {
   // Derive player names from first game ranking (same names across all games)
   const playerNames = results[0].ranking.map((r) => r.name);
 
-  // Per-player win count and aggregate score components
-  const playerStats = {};
-  for (const name of playerNames) {
-    playerStats[name] = {
-      wins: 0,
-      totalScore: 0,
-      totalContracts: 0,
-      totalContractRenown: 0,
-      totalSetBonus: 0,
-      totalHuntBonus: 0,
-      totalDebtPenalty: 0,
-      totalTierA: 0,
-      totalTierB: 0,
-      totalTierC: 0,
-      totalTierR: 0,
-      totalMelee: 0,
-      totalRanged: 0,
-      totalMounted: 0,
-      totalMoney: 0,
-    };
-  }
+  // Track win rate per player, and all other metrics by finishing position.
+  const playerWins = {};
+  for (const name of playerNames) playerWins[name] = 0;
+
+  const placeStats = results[0].ranking.map(() => ({
+    totalScore: 0,
+    totalContracts: 0,
+    totalContractRenown: 0,
+    totalSetBonus: 0,
+    totalHuntBonus: 0,
+    totalDebtPenalty: 0,
+    totalTierA: 0,
+    totalTierB: 0,
+    totalTierC: 0,
+    totalTierR: 0,
+    totalMelee: 0,
+    totalRanged: 0,
+    totalMounted: 0,
+    totalMoney: 0,
+  }));
+
   for (const result of results) {
     const winner = result.ranking[0];
-    playerStats[winner.name].wins += 1;
-    for (const entry of result.ranking) {
-      const s = playerStats[entry.name];
+    playerWins[winner.name] += 1;
+    for (let i = 0; i < result.ranking.length; i += 1) {
+      const entry = result.ranking[i];
+      const s = placeStats[i];
       s.totalScore += entry.score.total;
       s.totalContracts += entry.score.contracts;
       s.totalContractRenown += entry.score.contractRenown;
@@ -306,12 +307,17 @@ function renderBatchResults() {
     return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
   });
 
-  // Summary table
-  const summaryRows = playerNames.map((name) => {
-    const s = playerStats[name];
+  const placeLabel = (i) => {
+    if (i === 0) return '1st';
+    if (i === 1) return '2nd';
+    if (i === 2) return '3rd';
+    return `${i + 1}th`;
+  };
+
+  // Position summary table (winner/2nd/3rd/4th performance)
+  const summaryRows = placeStats.map((s, i) => {
     return `<tr>
-      <td>${name}</td>
-      <td><strong>${s.wins}</strong> (${pct(s.wins)}%)</td>
+      <td>${placeLabel(i)}</td>
       <td>${avg(s.totalScore)}</td>
       <td>${avg(s.totalContracts)}</td>
       <td>${avg(s.totalContractRenown)}</td>
@@ -326,6 +332,16 @@ function renderBatchResults() {
       <td>${avg(s.totalRanged)}</td>
       <td>${avg(s.totalMounted)}</td>
       <td>${avg(s.totalMoney)}</td>
+    </tr>`;
+  }).join('');
+
+  // Separate per-player win-rate summary.
+  const winSummaryRows = chartPlayerNames.map((name) => {
+    const wins = playerWins[name];
+    return `<tr>
+      <td>${name}</td>
+      <td><strong>${wins}</strong></td>
+      <td>${pct(wins)}%</td>
     </tr>`;
   }).join('');
 
@@ -354,14 +370,20 @@ function renderBatchResults() {
 
         <h3>Summary</h3>
         <table>
-          <thead><tr><th>Player</th><th>Wins</th><th>Avg Score</th><th>Avg Contracts</th><th>Avg Renown</th><th>Avg Sets</th><th>Avg Hunt</th><th>Avg Debt</th><th>Avg Tier A</th><th>Avg Tier B</th><th>Avg Tier C</th><th>Avg Tier R</th><th>Avg Melee</th><th>Avg Ranged</th><th>Avg Mounted</th><th>Avg Coins</th></tr></thead>
+          <thead><tr><th>Place</th><th>Avg Score</th><th>Avg Contracts</th><th>Avg Renown</th><th>Avg Sets</th><th>Avg Hunt</th><th>Avg Debt</th><th>Avg Tier A</th><th>Avg Tier B</th><th>Avg Tier C</th><th>Avg Tier R</th><th>Avg Melee</th><th>Avg Ranged</th><th>Avg Mounted</th><th>Avg Coins</th></tr></thead>
           <tbody>${summaryRows}</tbody>
+        </table>
+
+        <h3>Player Win Summary</h3>
+        <table>
+          <thead><tr><th>Player</th><th>Wins</th><th>Win Rate</th></tr></thead>
+          <tbody>${winSummaryRows}</tbody>
         </table>
 
         <h3>Win Rate Chart</h3>
         <div class="batch-bars">
           ${chartPlayerNames.map((name) => {
-            const winPct = (playerStats[name].wins / n) * 100;
+            const winPct = (playerWins[name] / n) * 100;
             return `<div class="batch-bar-row">
               <span class="batch-bar-label">${name}</span>
               <div class="batch-bar-track">
