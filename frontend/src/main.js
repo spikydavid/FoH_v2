@@ -133,7 +133,7 @@ function renderStartScreen() {
             <input id="batch-count" type="number" min="1" max="100000" value="1000" />
           </label>
           <label>
-            <input id="batch-disable-events" type="checkbox" /> Disable events (batch only)
+            <input id="disable-events" type="checkbox" /> Disable events
           </label>
           <label>Player 1 AI model
             <select id="batch-ai-1">
@@ -177,8 +177,9 @@ function renderStartScreen() {
 
   document.querySelector('#start-sim').addEventListener('click', () => {
     const playerCount = Math.max(2, Math.min(4, Number(playersInput.value) || 4));
+    const disableEvents = document.querySelector('#disable-events').checked;
     try {
-      game = createGame({ mode: 'simulation', playerCount, humanPlayers: 0 });
+      game = createGame({ mode: 'simulation', playerCount, humanPlayers: 0, disableEvents });
       runSimulation(game);
       renderGame();
     } catch (err) {
@@ -190,7 +191,8 @@ function renderStartScreen() {
   document.querySelector('#start-int').addEventListener('click', () => {
     const playerCount = Math.max(2, Math.min(4, Number(playersInput.value) || 4));
     const humanPlayers = Math.max(1, Math.min(playerCount, Number(humansInput.value) || 1));
-    game = createGame({ mode: 'interactive', playerCount, humanPlayers });
+    const disableEvents = document.querySelector('#disable-events').checked;
+    game = createGame({ mode: 'interactive', playerCount, humanPlayers, disableEvents });
     autoPlayUntilHumanOrEnd(game);
     renderGame();
   });
@@ -198,7 +200,7 @@ function renderStartScreen() {
   document.querySelector('#start-batch').addEventListener('click', () => {
     const playerCount = Math.max(2, Math.min(4, Number(playersInput.value) || 4));
     const batchCount = Math.max(1, Math.min(100000, Number(document.querySelector('#batch-count').value) || 1000));
-    const disableEvents = document.querySelector('#batch-disable-events').checked;
+    const disableEvents = document.querySelector('#disable-events').checked;
     const aiModels = [
       document.querySelector('#batch-ai-1').value,
       document.querySelector('#batch-ai-2').value,

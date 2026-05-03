@@ -736,7 +736,7 @@ function createInitialGame(config) {
   }
   assignAiModels(players, config);
 
-  const eventsEnabled = !(config.batchSimulation && config.disableEvents);
+  const eventsEnabled = !config.disableEvents;
 
   const game = {
     mode: config.mode,
