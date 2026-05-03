@@ -109,9 +109,15 @@ function modelForSeat(playerIndex, playerCount) {
   return AI_MARKET_MODELS[Math.max(0, Math.min(maxIdx, scaled))];
 }
 
+function modelById(id) {
+  if (!id) return null;
+  return AI_MARKET_MODELS.find((model) => model.id === id) || null;
+}
+
 function assignAiModels(players, config) {
   const hasHuman = (config.humanPlayers || 0) > 0;
   const isBatch = Boolean(config.batchSimulation);
+  const selectedBatchModels = Array.isArray(config.aiModels) ? config.aiModels : null;
 
   for (let i = 0; i < players.length; i += 1) {
     const player = players[i];
@@ -121,8 +127,16 @@ function assignAiModels(players, config) {
     }
 
     if (isBatch) {
-      // Batch: Player 1 most aggressive .. Player 4 most conservative.
-      player.aiModel = modelForSeat(i, players.length);
+      // Batch: allow explicit per-seat model selection.
+      const selected = selectedBatchModels ? modelById(selectedBatchModels[i]) : null;
+      if (selected) {
+        player.aiModel = selected;
+      } else if (selectedBatchModels) {
+        player.aiModel = DEFAULT_AI_MARKET_MODEL;
+      } else {
+        // Backward-compatible fallback if batch config does not provide explicit model picks.
+        player.aiModel = modelForSeat(i, players.length);
+      }
     } else if (hasHuman) {
       // Human games: random AI model once at game start.
       player.aiModel = sample(AI_MARKET_MODELS);

@@ -131,6 +131,38 @@ function renderStartScreen() {
           <label>Batch runs
             <input id="batch-count" type="number" min="1" max="1000" value="1000" />
           </label>
+          <label>Player 1 AI model
+            <select id="batch-ai-1">
+              <option value="aggressive">Aggressive</option>
+              <option value="forward">Forward</option>
+              <option value="steady" selected>Steady</option>
+              <option value="conservative">Conservative</option>
+            </select>
+          </label>
+          <label>Player 2 AI model
+            <select id="batch-ai-2">
+              <option value="aggressive">Aggressive</option>
+              <option value="forward">Forward</option>
+              <option value="steady" selected>Steady</option>
+              <option value="conservative">Conservative</option>
+            </select>
+          </label>
+          <label>Player 3 AI model
+            <select id="batch-ai-3">
+              <option value="aggressive">Aggressive</option>
+              <option value="forward">Forward</option>
+              <option value="steady" selected>Steady</option>
+              <option value="conservative">Conservative</option>
+            </select>
+          </label>
+          <label>Player 4 AI model
+            <select id="batch-ai-4">
+              <option value="aggressive">Aggressive</option>
+              <option value="forward">Forward</option>
+              <option value="steady" selected>Steady</option>
+              <option value="conservative">Conservative</option>
+            </select>
+          </label>
         </form>
       </section>
     </main>
@@ -162,7 +194,13 @@ function renderStartScreen() {
   document.querySelector('#start-batch').addEventListener('click', () => {
     const playerCount = Math.max(2, Math.min(4, Number(playersInput.value) || 4));
     const batchCount = Math.max(1, Math.min(1000, Number(document.querySelector('#batch-count').value) || 1000));
-    runBatchWithProgress({ playerCount }, batchCount);
+    const aiModels = [
+      document.querySelector('#batch-ai-1').value,
+      document.querySelector('#batch-ai-2').value,
+      document.querySelector('#batch-ai-3').value,
+      document.querySelector('#batch-ai-4').value,
+    ].slice(0, playerCount);
+    runBatchWithProgress({ playerCount, aiModels }, batchCount);
   });
 
   async function doSync(endpoint, btnId, statusId) {
