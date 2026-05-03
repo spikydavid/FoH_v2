@@ -1482,6 +1482,11 @@ function computePlayerScore(player) {
   const setBonus = finalSetBonus(player.scorePile);
   const debtPenalty = player.debts * 6;
   const total = contractRenown + setBonus + huntBonus - debtPenalty;
+  const tierCounts = { A: 0, B: 0, C: 0, R: 0 };
+  for (const card of player.scorePile) {
+    const tier = (card.tier || '').toUpperCase();
+    if (tierCounts[tier] !== undefined) tierCounts[tier] += 1;
+  }
 
   return {
     contractRenown,
@@ -1490,6 +1495,7 @@ function computePlayerScore(player) {
     debtPenalty,
     total,
     contracts: player.scorePile.length,
+    tierCounts,
     money: player.money,
   };
 }
@@ -1597,7 +1603,7 @@ export function runSimulation(game) {
 /**
  * Run `count` independent simulations and return an array of result objects,
  * one per game. Each result has:
- *   { gameIndex, rounds, ranking: [{ place, name, score: { total, contractRenown, setBonus, huntBonus, debtPenalty, contracts, money } }] }
+ *   { gameIndex, rounds, ranking: [{ place, name, score: { total, contractRenown, setBonus, huntBonus, debtPenalty, contracts, tierCounts, money } }] }
  */
 export function runMultipleSimulations(config, count) {
   const results = [];

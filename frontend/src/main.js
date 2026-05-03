@@ -253,7 +253,20 @@ function renderBatchResults() {
   // Per-player win count and aggregate score components
   const playerStats = {};
   for (const name of playerNames) {
-    playerStats[name] = { wins: 0, totalScore: 0, totalContracts: 0, totalContractRenown: 0, totalSetBonus: 0, totalHuntBonus: 0, totalDebtPenalty: 0, totalMoney: 0 };
+    playerStats[name] = {
+      wins: 0,
+      totalScore: 0,
+      totalContracts: 0,
+      totalContractRenown: 0,
+      totalSetBonus: 0,
+      totalHuntBonus: 0,
+      totalDebtPenalty: 0,
+      totalTierA: 0,
+      totalTierB: 0,
+      totalTierC: 0,
+      totalTierR: 0,
+      totalMoney: 0,
+    };
   }
   for (const result of results) {
     const winner = result.ranking[0];
@@ -266,6 +279,10 @@ function renderBatchResults() {
       s.totalSetBonus += entry.score.setBonus;
       s.totalHuntBonus += (entry.score.huntBonus || 0);
       s.totalDebtPenalty += entry.score.debtPenalty;
+      s.totalTierA += (entry.score.tierCounts?.A || 0);
+      s.totalTierB += (entry.score.tierCounts?.B || 0);
+      s.totalTierC += (entry.score.tierCounts?.C || 0);
+      s.totalTierR += (entry.score.tierCounts?.R || 0);
       s.totalMoney += entry.score.money;
     }
   }
@@ -285,6 +302,10 @@ function renderBatchResults() {
       <td>${avg(s.totalSetBonus)}</td>
       <td>${avg(s.totalHuntBonus)}</td>
       <td>-${avg(s.totalDebtPenalty)}</td>
+      <td>${avg(s.totalTierA)}</td>
+      <td>${avg(s.totalTierB)}</td>
+      <td>${avg(s.totalTierC)}</td>
+      <td>${avg(s.totalTierR)}</td>
       <td>${avg(s.totalMoney)}</td>
     </tr>`;
   }).join('');
@@ -295,9 +316,10 @@ function renderBatchResults() {
     const cells = result.ranking.map((entry, idx) => {
       const medal = idx === 0 ? '🥇 ' : idx === 1 ? '🥈 ' : idx === 2 ? '🥉 ' : '';
       const s = entry.score;
+      const tiers = s.tierCounts || { A: 0, B: 0, C: 0, R: 0 };
       return `<td class="${idx === 0 ? 'batch-winner' : ''}">
         ${medal}<strong>${entry.name}</strong><br>
-        <span class="meta">Total: ${s.total} | Contracts: ${s.contracts} | Renown: ${s.contractRenown} | Sets: ${s.setBonus}${s.huntBonus ? ` | Hunt: ${s.huntBonus}` : ''} | Debt: -${s.debtPenalty} | Coins: ${s.money}</span>
+        <span class="meta">Total: ${s.total} | Contracts: ${s.contracts} (A${tiers.A}/B${tiers.B}/C${tiers.C}/R${tiers.R}) | Renown: ${s.contractRenown} | Sets: ${s.setBonus}${s.huntBonus ? ` | Hunt: ${s.huntBonus}` : ''} | Debt: -${s.debtPenalty} | Coins: ${s.money}</span>
       </td>`;
     }).join('');
     return `<tr><td class="meta">#${result.gameIndex} (${result.rounds}r)</td>${cells}</tr>`;
@@ -313,7 +335,7 @@ function renderBatchResults() {
 
         <h3>Summary</h3>
         <table>
-          <thead><tr><th>Player</th><th>Wins</th><th>Avg Score</th><th>Avg Contracts</th><th>Avg Renown</th><th>Avg Sets</th><th>Avg Hunt</th><th>Avg Debt</th><th>Avg Coins</th></tr></thead>
+          <thead><tr><th>Player</th><th>Wins</th><th>Avg Score</th><th>Avg Contracts</th><th>Avg Renown</th><th>Avg Sets</th><th>Avg Hunt</th><th>Avg Debt</th><th>Avg Tier A</th><th>Avg Tier B</th><th>Avg Tier C</th><th>Avg Tier R</th><th>Avg Coins</th></tr></thead>
           <tbody>${summaryRows}</tbody>
         </table>
 
