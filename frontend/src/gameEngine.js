@@ -1075,7 +1075,7 @@ function chooseAiContracts(player) {
     const picks1 = [candidates[i]];
     if (!canPlayContracts(player, picks1)) continue;
     if (!canAfford(player, contractCost(picks1, discount))) continue;
-    const v1 = candidates[i].renown + candidates[i].coins;
+    const v1 = (candidates[i].renown*3) + candidates[i].coins;
     if (v1 > bestValue) { bestValue = v1; bestPicks = picks1; }
 
     for (let j = i + 1; j < n; j++) {
