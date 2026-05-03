@@ -427,7 +427,7 @@ function getSmugglerTarget(selectedContracts) {
   return target;
 }
 
-function createTierDecks() {
+function createTierDecks(includeEvents = true) {
   const tierDecks = { A: [], B: [], C: [] };
 
   for (const template of CONTRACT_CARDS) {
@@ -464,18 +464,20 @@ function createTierDecks() {
     }
   }
 
-  for (const template of EVENT_CARDS) {
-    if (!MAIN_TIERS.includes(template.tier)) continue;
-    for (let i = 0; i < template.copies; i += 1) {
-      tierDecks[template.tier].push({
-        id: uid('event'),
-        kind: 'event',
-        name: template.name,
-        tier: template.tier,
-        whenPlayed: { ...template.whenPlayed },
-        ongoing: { ...template.ongoing },
-        roundEnd: template.roundEnd || null,
-      });
+  if (includeEvents) {
+    for (const template of EVENT_CARDS) {
+      if (!MAIN_TIERS.includes(template.tier)) continue;
+      for (let i = 0; i < template.copies; i += 1) {
+        tierDecks[template.tier].push({
+          id: uid('event'),
+          kind: 'event',
+          name: template.name,
+          tier: template.tier,
+          whenPlayed: { ...template.whenPlayed },
+          ongoing: { ...template.ongoing },
+          roundEnd: template.roundEnd || null,
+        });
+      }
     }
   }
 
@@ -732,6 +734,8 @@ function createInitialGame(config) {
   }
   assignAiModels(players, config);
 
+  const eventsEnabled = !(config.batchSimulation && config.disableEvents);
+
   const game = {
     mode: config.mode,
     phase: 'setup',
@@ -747,7 +751,8 @@ function createInitialGame(config) {
     market: { melee: 3, ranged: 1, mounted: 1 },
     supply: { melee: 23, ranged: 12, mounted: 8, elite: 24 },
     armoury: config.playerCount * 4,
-    tierDecks: createTierDecks(),
+    eventsEnabled,
+    tierDecks: createTierDecks(eventsEnabled),
     rewardsDeck: createRewardsDeck(),
     offer: {
       A: [],
@@ -1840,6 +1845,11 @@ function nextPlayer(game) {
 }
 
 function finishGame(game) {
+  const tieBreak = new Map();
+  for (const player of game.players) {
+    tieBreak.set(player.id, Math.random());
+  }
+
   const ranking = game.players.map((player) => ({
     player,
     score: computePlayerScore(player),
@@ -1849,7 +1859,7 @@ function finishGame(game) {
     if (b.score.total !== a.score.total) return b.score.total - a.score.total;
     if (b.score.contracts !== a.score.contracts) return b.score.contracts - a.score.contracts;
     if (b.score.money !== a.score.money) return b.score.money - a.score.money;
-    return 0;
+    return (tieBreak.get(a.player.id) || 0) - (tieBreak.get(b.player.id) || 0);
   });
 
   game.winnerSummary = ranking;
@@ -1878,10 +1888,12 @@ export function runAiTurn(game) {
     player.eventInPlay = null;
   }
 
-  const eventFromHand = player.hand.find((card) => card.kind === 'event');
-  if (eventFromHand) {
-    player.hand = player.hand.filter((card) => card.id !== eventFromHand.id);
-    applyEventOnPlay(game, player, eventFromHand);
+  if (game.eventsEnabled) {
+    const eventFromHand = player.hand.find((card) => card.kind === 'event');
+    if (eventFromHand) {
+      player.hand = player.hand.filter((card) => card.id !== eventFromHand.id);
+      applyEventOnPlay(game, player, eventFromHand);
+    }
   }
 
   setTurnPhase(game, 'Enlist');
@@ -1972,10 +1984,12 @@ export function beginInteractiveTurn(game) {
     player.eventInPlay = null;
   }
 
-  const eventFromHand = player.hand.find((card) => card.kind === 'event');
-  if (eventFromHand) {
-    player.hand = player.hand.filter((card) => card.id !== eventFromHand.id);
-    applyEventOnPlay(game, player, eventFromHand);
+  if (game.eventsEnabled) {
+    const eventFromHand = player.hand.find((card) => card.kind === 'event');
+    if (eventFromHand) {
+      player.hand = player.hand.filter((card) => card.id !== eventFromHand.id);
+      applyEventOnPlay(game, player, eventFromHand);
+    }
   }
 
   setTurnPhase(game, 'Enlist');
