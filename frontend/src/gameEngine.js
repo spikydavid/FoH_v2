@@ -769,6 +769,7 @@ function createInitialGame(config) {
       selectedContractIds: [],
       drawChoicesRemaining: 0,
     },
+    undoStack: [],
   };
 
   for (const tier of MAIN_TIERS) {
@@ -2028,6 +2029,7 @@ export function beginInteractiveTurn(game) {
   setTurnPhase(game, 'Enlist');
   enlist(game);
   setTurnPhase(game, 'Market');
+  game.undoStack = [];
   game.humanState = {
     needsInput: true,
     step: 'market',
@@ -2036,10 +2038,40 @@ export function beginInteractiveTurn(game) {
   };
 }
 
+// ---------------------------------------------------------------------------
+// Undo support
+// ---------------------------------------------------------------------------
+
+/** Save a deep-clone snapshot of current game state onto the undo stack.
+ *  The undoStack itself is excluded from the clone to avoid exponential growth.
+ *  Capped at 30 entries to keep memory bounded. */
+function saveUndoSnapshot(game) {
+  const { undoStack, ...rest } = game;
+  undoStack.push(JSON.parse(JSON.stringify(rest)));
+  if (undoStack.length > 30) undoStack.shift();
+}
+
+/** Restore the most recent undo snapshot. Returns true if successful. */
+export function humanUndo(game) {
+  if (!game.undoStack || game.undoStack.length === 0) return false;
+  const snapshot = game.undoStack.pop();
+  const stack = game.undoStack; // preserve the live stack reference
+  // Wipe all current properties except undoStack
+  for (const key of Object.keys(game)) {
+    if (key !== 'undoStack') delete game[key];
+  }
+  Object.assign(game, snapshot);
+  game.undoStack = stack; // put the (now shorter) live stack back
+  return true;
+}
+
+// ---------------------------------------------------------------------------
+
 export function humanTakeLoan(game) {
+  saveUndoSnapshot(game);
   setTurnPhase(game, 'Market');
   const player = getActivePlayer(game);
-  if (!mayTakeLoan(player)) return false;
+  if (!mayTakeLoan(player)) { game.undoStack.pop(); return false; }
   player.money += 10;
   player.debts += 1;
   addLog(game, `${player.name} took a loan.`);
@@ -2047,19 +2079,20 @@ export function humanTakeLoan(game) {
 }
 
 export function humanBuyTroop(game, from, type) {
+  saveUndoSnapshot(game);
   setTurnPhase(game, 'Market');
   const player = getActivePlayer(game);
   const marketCosts = { melee: 2, ranged: 3, mounted: 4 };
   const supplyCosts = { melee: 4, ranged: 6, mounted: 8 };
   const cost = from === 'market' ? marketCosts[type] : supplyCosts[type];
 
-  if (!canAfford(player, cost)) return false;
+  if (!canAfford(player, cost)) { game.undoStack.pop(); return false; }
 
   if (from === 'market') {
-    if (game.market[type] <= 0) return false;
+    if (game.market[type] <= 0) { game.undoStack.pop(); return false; }
     game.market[type] -= 1;
   } else {
-    if (game.supply[type] <= 0) return false;
+    if (game.supply[type] <= 0) { game.undoStack.pop(); return false; }
     game.supply[type] -= 1;
   }
 
@@ -2069,22 +2102,24 @@ export function humanBuyTroop(game, from, type) {
 }
 
 export function humanBuyEquipment(game) {
+  saveUndoSnapshot(game);
   setTurnPhase(game, 'Market');
   const player = getActivePlayer(game);
-  if (!canAfford(player, 1) || game.armoury <= 0) return false;
+  if (!canAfford(player, 1) || game.armoury <= 0) { game.undoStack.pop(); return false; }
   player.money -= 1;
   gainEquipment(game, player, 1);
   return true;
 }
 
 export function humanHireSpecialist(game, cardId) {
+  saveUndoSnapshot(game);
   setTurnPhase(game, 'Market');
   const player = getActivePlayer(game);
-  if (player.retinue.length >= 3) return false;
+  if (player.retinue.length >= 3) { game.undoStack.pop(); return false; }
 
   const card = player.hand.find((c) => c.id === cardId && c.kind === 'specialist');
-  if (!card) return false;
-  if (!canAfford(player, card.cost)) return false;
+  if (!card) { game.undoStack.pop(); return false; }
+  if (!canAfford(player, card.cost)) { game.undoStack.pop(); return false; }
 
   player.money -= card.cost;
   player.retinue.push(card);
@@ -2095,24 +2130,27 @@ export function humanHireSpecialist(game, cardId) {
 }
 
 export function humanDischargeSpecialist(game, specialistId) {
+  saveUndoSnapshot(game);
   setTurnPhase(game, 'Market');
   const player = getActivePlayer(game);
   const exists = player.retinue.some((s) => s.id === specialistId);
-  if (!exists) return false;
+  if (!exists) { game.undoStack.pop(); return false; }
   player.retinue = player.retinue.filter((s) => s.id !== specialistId);
   return true;
 }
 
 export function humanProceedToCampaign(game) {
+  saveUndoSnapshot(game);
   setTurnPhase(game, 'Campaign');
   game.humanState.step = 'campaign';
   game.humanState.selectedContractIds = [];
 }
 
 export function humanToggleContractSelection(game, contractId) {
+  saveUndoSnapshot(game);
   const player = getActivePlayer(game);
   const card = player.hand.find((c) => c.id === contractId && c.kind === 'contract');
-  if (!card) return;
+  if (!card) { game.undoStack.pop(); return; }
 
   const ids = game.humanState.selectedContractIds;
   if (ids.includes(contractId)) {
@@ -2132,6 +2170,7 @@ function beginMuster(game, player) {
 }
 
 export function humanRunCampaign(game) {
+  saveUndoSnapshot(game);
   setTurnPhase(game, 'Campaign');
   const player = getActivePlayer(game);
   const ids = game.humanState.selectedContractIds;
@@ -2235,6 +2274,7 @@ export function humanToggleSacrifice(game, type, index) {
 }
 
 export function humanConfirmBattle(game) {
+  saveUndoSnapshot(game);
   setTurnPhase(game, 'Campaign');
   const player = getActivePlayer(game);
   const pb = game.humanState.pendingBattle;
@@ -2269,12 +2309,13 @@ export function humanConfirmBattle(game) {
 }
 
 export function humanDrawCard(game, source) {
+  saveUndoSnapshot(game);
   setTurnPhase(game, 'Muster');
   const player = getActivePlayer(game);
-  if (game.humanState.step !== 'draw') return false;
+  if (game.humanState.step !== 'draw') { game.undoStack.pop(); return false; }
 
   const ok = drawCardToHand(game, player, source);
-  if (!ok) return false;
+  if (!ok) { game.undoStack.pop(); return false; }
 
   game.humanState.drawChoicesRemaining -= 1;
   if (game.humanState.drawChoicesRemaining <= 0) {

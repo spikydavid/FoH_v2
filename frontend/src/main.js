@@ -17,6 +17,7 @@ import {
   humanRunCampaign,
   humanTakeLoan,
   humanToggleContractSelection,
+  humanUndo,
   previewBattleOutcome,
   runSimulation,
   runMultipleSimulations,
@@ -677,6 +678,7 @@ function renderHumanControls(active) {
       )
       .join('');
 
+    const canUndo = (game.undoStack || []).length > 0;
     return `
       <section class="panel">
         <h3>Human Market Actions</h3>
@@ -693,6 +695,7 @@ function renderHumanControls(active) {
           ${discharge}
         </div>
         <button class="primary" data-action="to-campaign">Finish Market</button>
+        <button class="action undo-btn" data-action="undo" ${canUndo ? '' : 'disabled'}>↩ Undo</button>
       </section>
     `;
   }
@@ -770,6 +773,7 @@ function renderHumanControls(active) {
 
     const runDisabled = hasSelected && (!canAfford || !canMeetTroops) ? 'disabled' : '';
     const runLabel = hasSelected ? `Run Campaign (cost: ${campaignCost === 0 ? 'free' : campaignCost + ' coins'})` : 'Skip Campaign (no cost)';
+    const canUndo = (game.undoStack || []).length > 0;
 
     return `
       <section class="panel">
@@ -779,6 +783,7 @@ function renderHumanControls(active) {
         ${troopMsg}
         <div class="contracts-list">${contractButtons || '<p>No contracts in hand.</p>'}</div>
         <button class="primary" data-action="run-campaign" ${runDisabled}>${runLabel}</button>
+        <button class="action undo-btn" data-action="undo" ${canUndo ? '' : 'disabled'}>↩ Undo</button>
       </section>
     `;
   }
@@ -808,6 +813,7 @@ function renderHumanControls(active) {
     }).join('');
     const deadSummary = `M${preview.dead.melee}/R${preview.dead.ranged}/Mo${preview.dead.mounted}`;
     const woundSummary = `M${preview.wounded.melee}/R${preview.wounded.ranged}/Mo${preview.wounded.mounted}`;
+    const canUndo = (game.undoStack || []).length > 0;
     return `
       <section class="panel">
         <h3>Battle: ${currentContract.title}</h3>
@@ -817,6 +823,7 @@ function renderHumanControls(active) {
         <p class="meta">Dead: ${deadSummary} | Wounded: ${woundSummary}</p>
         <p class="meta">Equipment: ${active.equipment} | ⚔ = sacrifice a wounded, successful, or wild unit for +1 typed success (6s keep their wild success) | ↩ = reroll (1 equipment)</p>
         <button class="primary" data-action="confirm-battle">Confirm Result</button>
+        <button class="action undo-btn" data-action="undo" ${canUndo ? '' : 'disabled'}>↩ Undo (back to campaign)</button>
         ${contractQueue.length > 0 ? `<p class="meta">${contractQueue.length} more contract(s) queued after this.</p>` : ''}
       </section>
     `;
@@ -825,6 +832,7 @@ function renderHumanControls(active) {
   if (game.humanState.step === 'draw') {
     const offerDisabled = (tier) => (game.offer[tier].length === 0 ? 'disabled' : '');
     const deckDisabled = (tier) => ((game.tierDecks[tier] || []).length === 0 ? 'disabled' : '');
+    const canUndo = (game.undoStack || []).length > 0;
     return `
       <section class="panel">
         <h3>Muster Draw (${game.humanState.drawChoicesRemaining} left)</h3>
@@ -836,6 +844,7 @@ function renderHumanControls(active) {
           <button class="action" data-action="draw" data-source="deck:B" ${deckDisabled('B')}>Draw Tier B Deck</button>
           <button class="action" data-action="draw" data-source="deck:C" ${deckDisabled('C')}>Draw Tier C Deck</button>
         </div>
+        <button class="action undo-btn" data-action="undo" ${canUndo ? '' : 'disabled'}>↩ Undo last draw</button>
       </section>
     `;
   }
@@ -950,8 +959,9 @@ function renderGame() {
       if (action === 'sacrifice-die') humanToggleSacrifice(game, type, Number(button.dataset.index));
       if (action === 'confirm-battle') humanConfirmBattle(game);
       if (action === 'draw') humanDrawCard(game, source);
+      if (action === 'undo') humanUndo(game);
 
-      if (!game.isFinished && game.mode === 'interactive' && !getActivePlayer(game).isHuman) {
+      if (!game.isFinished && game.mode === 'interactive' && action !== 'undo' && !getActivePlayer(game).isHuman) {
         autoPlayUntilHumanOrEnd(game);
       }
 
