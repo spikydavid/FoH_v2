@@ -730,14 +730,18 @@ function renderHumanControls(active) {
         <div class="market-layout">
           <div class="market-panel-box">
             <h4>Market Purchases</h4>
-            <div class="market-column">
-              <button class="action" data-action="buy-eq">Buy Equipment (1)</button>
-              <button class="action" data-action="buy-market" data-type="melee">Buy Market Melee (2)</button>
-              <button class="action" data-action="buy-market" data-type="ranged">Buy Market Ranged (3)</button>
-              <button class="action" data-action="buy-market" data-type="mounted">Buy Market Mounted (4)</button>
-              <button class="action" data-action="buy-supply" data-type="melee">Buy Supply Melee (4)</button>
-              <button class="action" data-action="buy-supply" data-type="ranged">Buy Supply Ranged (6)</button>
-              <button class="action" data-action="buy-supply" data-type="mounted">Buy Supply Mounted (8)</button>
+            <div class="market-split">
+              <div class="market-column">
+                <button class="action" data-action="buy-eq">Buy Equipment (1)</button>
+                <button class="action" data-action="buy-market" data-type="melee">Buy Market Melee (2)</button>
+                <button class="action" data-action="buy-market" data-type="ranged">Buy Market Ranged (3)</button>
+                <button class="action" data-action="buy-market" data-type="mounted">Buy Market Mounted (4)</button>
+              </div>
+              <div class="market-column">
+                <button class="action" data-action="buy-supply" data-type="melee">Buy Supply Melee (4)</button>
+                <button class="action" data-action="buy-supply" data-type="ranged">Buy Supply Ranged (6)</button>
+                <button class="action" data-action="buy-supply" data-type="mounted">Buy Supply Mounted (8)</button>
+              </div>
             </div>
           </div>
 
@@ -963,14 +967,9 @@ function renderGame() {
           <p>Troops: M${active.troops.melee} / R${active.troops.ranged} / Mo${active.troops.mounted}</p>
           <p>Retinue: ${active.retinue.map((s) => s.name).join(', ') || 'None'}</p>
           <p>Event in play: ${active.eventInPlay?.name || 'None'}</p>
-          <h4>Hand</h4>
-          <p>Contracts: ${handContracts.length} | Specialists: ${handSpecialists.length} | Events: ${handEvents.length}</p>
-          <div class="contracts-list small">
-            ${handContracts.slice(0, 8).map((card) => `<div class="chip">${contractText(card)}</div>`).join('')}
-          </div>
         </div>
         <div>
-          <h3>Shared Pools</h3>
+          <h3>Common Resources</h3>
           <p>Market: M${game.market.melee} / R${game.market.ranged} / Mo${game.market.mounted}</p>
           <p>Bag: M${game.bag.melee} / R${game.bag.ranged} / Mo${game.bag.mounted}</p>
           <p>Supply: M${game.supply.melee} / R${game.supply.ranged} / Mo${game.supply.mounted} / E${game.supply.elite}</p>
@@ -981,6 +980,14 @@ function renderGame() {
           <p>Main decks total: C${totalContracts} / S${totalSpecialists} / E${totalEvents}</p>
           <p>Rewards deck (Tier R contracts): ${game.rewardsDeck.length}</p>
           ${renderOffer()}
+        </div>
+      </section>
+
+      <section class="panel hand-panel">
+        <h3>Hand</h3>
+        <p>Contracts: ${handContracts.length} | Specialists: ${handSpecialists.length} | Events: ${handEvents.length}</p>
+        <div class="hand-strip">
+          ${handContracts.map((card) => `<div class="chip">${contractText(card)}</div>`).join('') || '<em>No contracts in hand.</em>'}
         </div>
       </section>
 
