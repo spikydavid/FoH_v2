@@ -1106,7 +1106,8 @@ function finalizeContractBattle(game, player, contract, rolls, availableTroops, 
 function resolveContractBattle(game, player, contract, availableTroops) {
   const rolls = rollContractDice(availableTroops);
 
-  // AI: spend equipment to reroll dead dice (1-2) when losing, one at a time.
+  // AI: spend equipment to reroll low-value dice (dead 1-2, then wounded 3)
+  // when losing, one at a time.
   // Stop as soon as the battle is projected to be won or equipment runs out.
   if (player.equipment > 0) {
     const types = ['melee', 'ranged', 'mounted'];
@@ -1114,9 +1115,9 @@ function resolveContractBattle(game, player, contract, availableTroops) {
     while (player.equipment > 0) {
       const preview = previewBattleOutcome(player, contract, rolls);
       if (preview.willSucceed) break;
-      // Reroll the lowest dead die (roll 1 before 2) to maximise value
+      // Reroll the lowest-value die first (1, then 2, then 3) to maximise value.
       let rerolled = false;
-      for (const face of [1, 2]) {
+      for (const face of [1, 2, 3]) {
         for (const type of types) {
           const idx = rolls[type].indexOf(face);
           if (idx !== -1) {
@@ -1130,7 +1131,7 @@ function resolveContractBattle(game, player, contract, availableTroops) {
         }
         if (rerolled) break;
       }
-      if (!rerolled) break; // No dead dice remain to reroll
+      if (!rerolled) break; // No eligible low-value dice remain to reroll
     }
     if (spent > 0) {
       addEffect(game, `${player.name} used ${spent} equipment to reroll dice.`);
@@ -1693,8 +1694,13 @@ function playAiMarket(game, player) {
   if (mayTakeLoan(player)) {
     const maybeLoanPlan = bestAiCampaignPlan(game, player, player.money + 10, model);
     const noLoanScore = maybeNoLoanPlan ? maybeNoLoanPlan.value : -Infinity;
-    const loanScore = maybeLoanPlan ? (maybeLoanPlan.value - (6 * model.debtPenaltyWeight)) : -Infinity;
-    if (loanScore > noLoanScore + model.loanThreshold) {
+    // Make loans progressively less attractive: each additional debt raises both
+    // the score penalty and the decision threshold.
+    const projectedDebts = player.debts + 1;
+    const debtScorePenalty = (6 * projectedDebts * projectedDebts * model.debtPenaltyWeight);
+    const debtAwareThreshold = model.loanThreshold + (projectedDebts * 2.0);
+    const loanScore = maybeLoanPlan ? (maybeLoanPlan.value - debtScorePenalty) : -Infinity;
+    if (loanScore > 0 && loanScore > noLoanScore + debtAwareThreshold) {
       player.money += 10;
       player.debts += 1;
       addLog(game, `${player.name} took a loan.`);

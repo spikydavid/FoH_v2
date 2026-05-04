@@ -89,9 +89,9 @@ function offerCardText(card) {
 }
 
 function renderOffer() {
-  const tierA = game.offer.A.map((c) => `<div class="chip">${offerCardText(c)}</div>`).join('') || '<em>None</em>';
-  const tierB = game.offer.B.map((c) => `<div class="chip">${offerCardText(c)}</div>`).join('') || '<em>None</em>';
-  const tierC = game.offer.C.map((c) => `<div class="chip">${offerCardText(c)}</div>`).join('') || '<em>None</em>';
+  const tierA = game.offer.A[0] ? `<div class="chip">${offerCardText(game.offer.A[0])}</div>` : '<em>None</em>';
+  const tierB = game.offer.B[0] ? `<div class="chip">${offerCardText(game.offer.B[0])}</div>` : '<em>None</em>';
+  const tierC = game.offer.C[0] ? `<div class="chip">${offerCardText(game.offer.C[0])}</div>` : '<em>None</em>';
   return `
     <h4>Offer</h4>
     <p><strong>Tier A:</strong></p><div class="contracts-list small">${tierA}</div>
@@ -133,7 +133,7 @@ function renderStartScreen() {
             <input id="batch-count" type="number" min="1" max="100000" value="1000" />
           </label>
           <label>
-            <input id="disable-events" type="checkbox" /> Disable events
+            <input id="disable-events" type="checkbox" checked /> Disable events
           </label>
           <label>Player 1 AI model
             <select id="batch-ai-1">
@@ -308,6 +308,7 @@ function renderBatchResults() {
     totalTurns: 0,
     totalContractsPerCampaign: 0,
     totalContracts: 0,
+    totalContractsAttempted: 0,
     totalContractRenown: 0,
     totalSetBonus: 0,
     totalHuntBonus: 0,
@@ -337,6 +338,7 @@ function renderBatchResults() {
       s.totalTurns += (entry.score.turns || 0);
       s.totalContractsPerCampaign += (entry.score.contractsPerCampaign || 0);
       s.totalContracts += entry.score.contracts;
+      s.totalContractsAttempted += (entry.score.selectedContracts || 0);
       s.totalContractRenown += entry.score.contractRenown;
       s.totalSetBonus += entry.score.setBonus;
       s.totalHuntBonus += (entry.score.huntBonus || 0);
@@ -471,12 +473,14 @@ function renderBatchResults() {
 
   // Position summary table (winner/2nd/3rd/4th performance)
   const summaryRows = placeStats.map((s, i) => {
+    const placeCompletionPct = ratePct(s.totalContracts, s.totalContractsAttempted);
     return `<tr>
       <td>${placeLabel(i)}</td>
       <td>${avg(s.totalScore)}</td>
       <td>${avg(s.totalTurns)}</td>
       <td>${avg(s.totalContractsPerCampaign)}</td>
       <td>${avg(s.totalContracts)}</td>
+      <td>${placeCompletionPct}%</td>
       <td>${avg(s.totalContractRenown)}</td>
       <td>${avg(s.totalSetBonus)}</td>
       <td>${avg(s.totalHuntBonus)}</td>
@@ -492,6 +496,12 @@ function renderBatchResults() {
       <td>${avg(s.totalEquipment)}</td>
     </tr>`;
   }).join('');
+
+  const firstPlace = placeStats[0] || { totalContracts: 0, totalContractsAttempted: 0 };
+  const lastPlace = placeStats[placeStats.length - 1] || { totalContracts: 0, totalContractsAttempted: 0 };
+  const firstCompletion = Number(ratePct(firstPlace.totalContracts, firstPlace.totalContractsAttempted));
+  const lastCompletion = Number(ratePct(lastPlace.totalContracts, lastPlace.totalContractsAttempted));
+  const completionDelta = (firstCompletion - lastCompletion).toFixed(1);
 
   // Separate per-player win-rate summary.
   const winSummaryRows = chartPlayerNames.map((name) => {
@@ -572,8 +582,9 @@ function renderBatchResults() {
         <button id="batch-back">← Back to Start</button>
 
         <h3>Summary</h3>
+        <p class="meta">Contract completion by place: 1st ${firstCompletion.toFixed(1)}% vs ${placeLabel(placeStats.length - 1)} ${lastCompletion.toFixed(1)}% (delta ${completionDelta} pts).</p>
         <table>
-          <thead><tr><th>Place</th><th>Avg Score</th><th>Avg Turns</th><th>Avg Contracts/Campaign</th><th>Avg Contracts</th><th>Avg Renown</th><th>Avg Sets</th><th>Avg Hunt</th><th>Avg Debt</th><th>Avg Tier A</th><th>Avg Tier B</th><th>Avg Tier C</th><th>Avg Tier R</th><th>Avg Melee</th><th>Avg Ranged</th><th>Avg Mounted</th><th>Avg Coins</th><th>Avg Equipment</th></tr></thead>
+          <thead><tr><th>Place</th><th>Avg Score</th><th>Avg Turns</th><th>Avg Contracts/Campaign</th><th>Avg Contracts</th><th>Completion %</th><th>Avg Renown</th><th>Avg Sets</th><th>Avg Hunt</th><th>Avg Debt</th><th>Avg Tier A</th><th>Avg Tier B</th><th>Avg Tier C</th><th>Avg Tier R</th><th>Avg Melee</th><th>Avg Ranged</th><th>Avg Mounted</th><th>Avg Coins</th><th>Avg Equipment</th></tr></thead>
           <tbody>${summaryRows}</tbody>
         </table>
 
@@ -686,9 +697,17 @@ function renderHumanControls(active) {
   const selectedIds = game.humanState.selectedContractIds || [];
 
   if (game.humanState.step === 'market') {
+    const specialistRulesText = (card) => (card.effect || 'No specialist rule text available.')
+      .replace(/"/g, '&quot;');
+
     const specialists = specialistCards
       .map(
-        (card) => `<button class="action" data-action="hire" data-id="${card.id}">Hire ${card.name} (${card.cost})</button>`,
+        (card) => `
+          <div class="specialist-row">
+            <button class="action" data-action="hire" data-id="${card.id}">Hire ${card.name} (${card.cost})</button>
+            <span class="info-tip" title="${specialistRulesText(card)}" aria-label="${card.name} rule">i</span>
+          </div>
+        `,
       )
       .join('');
 
@@ -702,20 +721,49 @@ function renderHumanControls(active) {
     return `
       <section class="panel">
         <h3>Human Market Actions</h3>
-        <div class="actions-grid">
-          <button class="action" data-action="loan">Take Loan</button>
-          <button class="action" data-action="buy-eq">Buy Equipment (1)</button>
-          <button class="action" data-action="buy-market" data-type="melee">Buy Market Melee (2)</button>
-          <button class="action" data-action="buy-market" data-type="ranged">Buy Market Ranged (3)</button>
-          <button class="action" data-action="buy-market" data-type="mounted">Buy Market Mounted (4)</button>
-          <button class="action" data-action="buy-supply" data-type="melee">Buy Supply Melee (4)</button>
-          <button class="action" data-action="buy-supply" data-type="ranged">Buy Supply Ranged (6)</button>
-          <button class="action" data-action="buy-supply" data-type="mounted">Buy Supply Mounted (8)</button>
-          ${specialists}
-          ${discharge}
+        <div class="market-resources meta">
+          <div><strong>Coins:</strong> ${active.money} | <strong>Debt:</strong> ${active.debts} | <strong>Equipment:</strong> ${active.equipment}</div>
+          <div><strong>Your Troops:</strong> M${active.troops.melee}/R${active.troops.ranged}/Mo${active.troops.mounted}</div>
+          <div><strong>Market:</strong> M${game.market.melee}/R${game.market.ranged}/Mo${game.market.mounted} | <strong>Supply:</strong> M${game.supply.melee}/R${game.supply.ranged}/Mo${game.supply.mounted} | <strong>Armoury:</strong> ${game.armoury}</div>
         </div>
-        <button class="primary" data-action="to-campaign">Finish Market</button>
-        <button class="action undo-btn" data-action="undo" ${canUndo ? '' : 'disabled'}>↩ Undo</button>
+
+        <div class="market-layout">
+          <div class="market-panel-box">
+            <h4>Market Purchases</h4>
+            <div class="market-column">
+              <button class="action" data-action="buy-eq">Buy Equipment (1)</button>
+              <button class="action" data-action="buy-market" data-type="melee">Buy Market Melee (2)</button>
+              <button class="action" data-action="buy-market" data-type="ranged">Buy Market Ranged (3)</button>
+              <button class="action" data-action="buy-market" data-type="mounted">Buy Market Mounted (4)</button>
+              <button class="action" data-action="buy-supply" data-type="melee">Buy Supply Melee (4)</button>
+              <button class="action" data-action="buy-supply" data-type="ranged">Buy Supply Ranged (6)</button>
+              <button class="action" data-action="buy-supply" data-type="mounted">Buy Supply Mounted (8)</button>
+            </div>
+          </div>
+
+          <div class="market-panel-box">
+            <h4>Offer Actions</h4>
+            <div class="market-column">
+              <button class="action" data-action="loan">Take Loan</button>
+              <button class="primary" data-action="to-campaign">Finish Market</button>
+              <button class="action undo-btn" data-action="undo" ${canUndo ? '' : 'disabled'}>↩ Undo</button>
+            </div>
+          </div>
+
+          <div class="market-panel-box">
+            <h4>Hire Specialists</h4>
+            <div class="market-column">
+              ${specialists || '<p class="meta">No specialists in hand.</p>'}
+            </div>
+          </div>
+
+          <div class="market-panel-box">
+            <h4>Discharge Retinue</h4>
+            <div class="market-column">
+              ${discharge || '<p class="meta">No specialists in retinue.</p>'}
+            </div>
+          </div>
+        </div>
       </section>
     `;
   }
