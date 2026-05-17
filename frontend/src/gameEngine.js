@@ -1,6 +1,13 @@
 import { CONTRACT_CARDS } from './contractsData';
 import { SPECIALIST_CARDS } from './specialistsData';
-import { resolveContractBattle } from './contractResolution';
+import {
+  classifyRolls as classifyRollsContract,
+  finalizeContractBattle as finalizeContractBattleContract,
+  isSacrificeEligibleRoll,
+  previewBattleOutcome as previewBattleOutcomeContract,
+  resolveContractBattle as resolveContractBattleContract,
+  rollContractDice as rollContractDiceContract,
+} from './contractResolution';
 
 const SET_SCORES = {
   1: 0,
@@ -856,219 +863,46 @@ function specialistBonus(player) {
   return bonus;
 }
 
-function rollContractDice(availableTroops) {
-  const rolls = { melee: [], ranged: [], mounted: [] };
-  for (const type of ['melee', 'ranged', 'mounted']) {
-    for (let i = 0; i < availableTroops[type]; i += 1) {
-      rolls[type].push(rand(1, 6));
-    }
-  }
-  return rolls;
-}
+const classifyRollsForBattle = (rolls, player) => classifyRollsContract(rolls, player, {
+  emptyTroops,
+  hasSpecialist,
+});
 
-function classifyRolls(rolls, player) {
-  const successes = emptyTroops();
-  let wildcard = 0;
-  const wounded = emptyTroops();
-  const dead = emptyTroops();
-  let drillSergeantFlips = hasSpecialist(player, 'Drill Sergeant') ? 2 : 0;
-  const standardBearer = hasSpecialist(player, 'Standard Bearer');
+const rollContractDiceForBattle = (availableTroops) => rollContractDiceContract(availableTroops, rand);
 
-  for (const type of ['melee', 'ranged', 'mounted']) {
-    for (const roll of rolls[type]) {
-      if (roll <= 2) {
-        dead[type] += 1;
-      } else if (roll === 3) {
-        wounded[type] += 1;
-        if (standardBearer) successes[type] += 1;
-      } else if (roll <= 5) {
-        if (roll === 5 && drillSergeantFlips > 0) {
-          wildcard += 1;
-          drillSergeantFlips -= 1;
-        } else {
-          successes[type] += 1;
-        }
-      } else {
-        wildcard += 1;
-      }
-    }
-  }
-  return { successes, wildcard, wounded, dead };
-}
+const previewBattleOutcomeForBattle = (player, contract, rolls, sacrificedIndices = null) => previewBattleOutcomeContract(
+  player,
+  contract,
+  rolls,
+  sacrificedIndices,
+  {
+    classifyRolls: classifyRollsForBattle,
+    cloneTroops,
+  },
+);
 
-function isSacrificeEligibleRoll(player, roll) {
-  void player;
-  return roll === 3 || (roll >= 4 && roll <= 6);
-}
-
-function getAutoSacrificeCounts(player, typeRolls) {
-  let woundedSuccesses = 0;
-  let healthySuccesses = 0;
-
-  for (const roll of typeRolls) {
-    if (roll === 3) {
-      woundedSuccesses += 1;
-    } else if (roll >= 4 && roll <= 6) {
-      healthySuccesses += 1;
-    }
-  }
-
-  return { woundedSuccesses, healthySuccesses };
-}
+const finalizeContractBattleForBattle = (
+  game,
+  player,
+  contract,
+  rolls,
+  availableTroops,
+  humanSacrificed = null,
+) => finalizeContractBattleContract(game, player, contract, rolls, availableTroops, humanSacrificed, {
+  cloneTroops,
+  classifyRolls: classifyRollsForBattle,
+  specialistBonus,
+  hasSpecialist,
+  gainEquipment,
+  addEffect,
+  countFace,
+  countSpecialist,
+  drawFromDeck,
+  emptyTroops,
+});
 
 export function previewBattleOutcome(player, contract, rolls, sacrificedIndices = null) {
-  const { successes, wildcard: wc, wounded, dead } = classifyRolls(rolls, player);
-  const rem = cloneTroops(contract.requirements);
-  let remainingWild = wc;
-  const exSuc = cloneTroops(successes);
-
-  if (sacrificedIndices !== null) {
-    // Apply explicit player sacrifices
-    for (const type of ['melee', 'ranged', 'mounted']) {
-      for (const idx of sacrificedIndices[type]) {
-        const roll = rolls[type]?.[idx];
-        if (roll === undefined) continue;
-        const isEligible = isSacrificeEligibleRoll(player, roll);
-        if (isEligible) {
-          exSuc[type] += 1;
-          if (roll === 3) {
-            wounded[type] = Math.max(0, wounded[type] - 1);
-          }
-          dead[type] += 1;
-        }
-      }
-    }
-  }
-
-  for (const type of ['melee', 'ranged', 'mounted']) {
-    const use = Math.min(exSuc[type], rem[type]);
-    rem[type] -= use;
-    exSuc[type] -= use;
-  }
-  for (const type of ['melee', 'ranged', 'mounted']) {
-    if (rem[type] === 0) continue;
-    const use = Math.min(rem[type], remainingWild);
-    rem[type] -= use;
-    remainingWild -= use;
-  }
-  if (sacrificedIndices === null) {
-    // Auto-sacrifice potential (AI / simple preview without explicit choices)
-    for (const type of ['melee', 'ranged', 'mounted']) {
-      if (rem[type] === 0) continue;
-      const autoSacrifice = getAutoSacrificeCounts(player, rolls[type]);
-      const useFromWounded = Math.min(rem[type], autoSacrifice.woundedSuccesses);
-      const remainingNeed = rem[type] - useFromWounded;
-      const useFromHealthy = Math.min(remainingNeed, autoSacrifice.healthySuccesses);
-      const use = useFromWounded + useFromHealthy;
-      rem[type] -= use;
-      wounded[type] = Math.max(0, wounded[type] - useFromWounded);
-      dead[type] += use;
-    }
-  }
-  const willSucceed = rem.melee + rem.ranged + rem.mounted === 0;
-  return { dead, wounded, willSucceed };
-}
-
-function finalizeContractBattle(game, player, contract, rolls, availableTroops, humanSacrificed = null) {
-  const req = cloneTroops(contract.requirements);
-  const { successes, wildcard: initWild, wounded, dead } = classifyRolls(rolls, player);
-  let wildcard = initWild;
-
-  const bonus = specialistBonus(player);
-  successes.melee += bonus.melee;
-  successes.ranged += bonus.ranged;
-  successes.mounted += bonus.mounted;
-  wildcard += bonus.wildcard;
-
-  // Apply explicit human sacrifices before filling requirements
-  let sacrificed = 0;
-  if (humanSacrificed !== null) {
-    for (const type of ['melee', 'ranged', 'mounted']) {
-      for (const idx of humanSacrificed[type]) {
-        const roll = rolls[type]?.[idx];
-        if (roll === undefined) continue;
-        const isEligible = isSacrificeEligibleRoll(player, roll);
-        if (isEligible) {
-          successes[type] += 1;
-          if (roll === 3) {
-            wounded[type] = Math.max(0, wounded[type] - 1);
-          }
-          dead[type] += 1;
-          sacrificed += 1;
-        }
-      }
-    }
-  }
-
-  const assigned = emptyTroops();
-  for (const type of ['melee', 'ranged', 'mounted']) {
-    const use = Math.min(successes[type], req[type]);
-    assigned[type] += use;
-    req[type] -= use;
-    successes[type] -= use;
-  }
-  for (const type of ['melee', 'ranged', 'mounted']) {
-    if (req[type] === 0) continue;
-    const use = Math.min(req[type], wildcard);
-    req[type] -= use;
-    wildcard -= use;
-    assigned[type] += use;
-  }
-
-  if (humanSacrificed === null) {
-    // Auto-sacrifice (AI path only): sacrifice typed-success units for one
-    // further success of the same type, preferring wounded successes first.
-    for (const type of ['melee', 'ranged', 'mounted']) {
-      if (req[type] === 0) continue;
-      const autoSacrifice = getAutoSacrificeCounts(player, rolls[type]);
-      const useFromWounded = Math.min(req[type], autoSacrifice.woundedSuccesses);
-      const remainingNeed = req[type] - useFromWounded;
-      const useFromHealthy = Math.min(remainingNeed, autoSacrifice.healthySuccesses);
-      const use = useFromWounded + useFromHealthy;
-      req[type] -= use;
-      wounded[type] = Math.max(0, wounded[type] - useFromWounded);
-      dead[type] += use;
-      sacrificed += use;
-    }
-  }
-
-  if ((dead.melee + dead.ranged + dead.mounted) > 0 && hasSpecialist(player, 'Surgeon')) {
-    for (const type of ['melee', 'ranged', 'mounted']) {
-      if (dead[type] > 0) { dead[type] -= 1; wounded[type] += 1; break; }
-    }
-  }
-
-  if ((dead.melee + dead.ranged + dead.mounted) > 0 && hasSpecialist(player, 'Grave Robber')) {
-    const gain = gainEquipment(game, player, 1);
-    player.money += 1;
-    addEffect(game, `${player.name}'s Grave Robber gained 1 coin${gain > 0 ? ` and ${gain} equipment` : ''}.`);
-  }
-
-  if ((dead.melee + dead.ranged + dead.mounted) > 0 && hasSpecialist(player, 'Scavenger')) {
-    const ones = countFace(rolls, 1);
-    if (ones > 0) {
-      player.money += ones;
-      addEffect(game, `${player.name}'s Scavenger gained ${ones} coins from losses.`);
-    }
-  }
-
-  if (sacrificed > 0 && hasSpecialist(player, 'Chaplain')) {
-    const draws = Math.min(sacrificed, countSpecialist(player, 'Chaplain'));
-    for (let i = 0; i < draws; i += 1) {
-      const card = drawFromDeck(game, 'contract');
-      if (card) player.hand.push(card);
-    }
-    if (draws > 0) addEffect(game, `${player.name}'s Chaplain drew ${draws} card(s) from sacrifice.`);
-  }
-
-  const success = req.melee + req.ranged + req.mounted === 0;
-  for (const type of ['melee', 'ranged', 'mounted']) {
-    player.troops[type] -= dead[type];
-    game.supply[type] += dead[type];
-    availableTroops[type] = Math.max(0, availableTroops[type] - dead[type] - wounded[type]);
-  }
-
-  return { success, dead, wounded, rolls, assigned };
+  return previewBattleOutcomeForBattle(player, contract, rolls, sacrificedIndices);
 }
 
 function canPlayContracts(player, contracts, smugglerTargetId = null) {
@@ -1196,10 +1030,10 @@ function runCampaign(game, player, selectedContracts) {
       continue;
     }
 
-    const outcome = resolveContractBattle(game, player, contract, availableTroops, {
-      rollContractDice,
-      previewBattleOutcome,
-      finalizeContractBattle,
+    const outcome = resolveContractBattleContract(game, player, contract, availableTroops, {
+      rollContractDice: rollContractDiceForBattle,
+      previewBattleOutcome: previewBattleOutcomeForBattle,
+      finalizeContractBattle: finalizeContractBattleForBattle,
       addEffect,
     });
 
@@ -2186,7 +2020,7 @@ export function humanRunCampaign(game) {
     contractQueue: battleQueue.slice(1),
     currentContract: battleQueue[0],
     availableTroops,
-    rolls: rollContractDice(availableTroops),
+    rolls: rollContractDiceForBattle(availableTroops),
     sacrificed: { melee: [], ranged: [], mounted: [] },
   };
   game.humanState.step = 'battle';
@@ -2230,7 +2064,7 @@ export function humanConfirmBattle(game) {
   const pb = game.humanState.pendingBattle;
   const { currentContract, rolls, availableTroops } = pb;
 
-  const outcome = finalizeContractBattle(game, player, currentContract, rolls, availableTroops, pb.sacrificed);
+  const outcome = finalizeContractBattleForBattle(game, player, currentContract, rolls, availableTroops, pb.sacrificed);
 
   if (outcome.success) {
     let rewardCoins = currentContract.coins + countSpecialist(player, 'Paymaster');
@@ -2250,7 +2084,7 @@ export function humanConfirmBattle(game) {
   const next = pb.contractQueue.shift();
   if (next) {
     pb.currentContract = next;
-    pb.rolls = rollContractDice(pb.availableTroops);
+    pb.rolls = rollContractDiceForBattle(pb.availableTroops);
     pb.sacrificed = { melee: [], ranged: [], mounted: [] };
   } else {
     game.humanState.pendingBattle = null;
