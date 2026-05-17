@@ -1,5 +1,6 @@
 import { CONTRACT_CARDS } from './contractsData';
 import { SPECIALIST_CARDS } from './specialistsData';
+import { resolveContractBattle } from './contractResolution';
 
 const SET_SCORES = {
   1: 0,
@@ -416,17 +417,20 @@ function applySpecialistOnHire(game, player, card) {
   }
 }
 
-function getSmugglerTarget(selectedContracts) {
-  let target = null;
-  let bestDifficulty = -1;
-  for (const card of selectedContracts) {
-    const difficulty = card.requirements.melee + card.requirements.ranged + card.requirements.mounted;
-    if (difficulty > bestDifficulty) {
-      bestDifficulty = difficulty;
-      target = card;
-    }
-  }
-  return target;
+function createLoadedContract(template, idPrefix = 'contract') {
+  return {
+    id: uid(idPrefix),
+    kind: 'contract',
+    title: template.title,
+    type: template.type,
+    region: template.region,
+    requirements: cloneTroops(template.requirements),
+    renown: 0,
+    coins: template.coins + (template.renown * 3),
+    tier: template.tier,
+    cardNumber: template.cardNumber,
+    completionEffect: template.completionEffect || '',
+  };
 }
 
 function createTierDecks(includeEvents = true) {
@@ -435,19 +439,7 @@ function createTierDecks(includeEvents = true) {
   for (const template of CONTRACT_CARDS) {
     if (!MAIN_TIERS.includes(template.tier)) continue;
     for (let i = 0; i < template.copies; i += 1) {
-      tierDecks[template.tier].push({
-        id: uid('contract'),
-        kind: 'contract',
-        title: template.title,
-        type: template.type,
-        region: template.region,
-        requirements: cloneTroops(template.requirements),
-        renown: template.renown,
-        coins: template.coins,
-        tier: template.tier,
-        cardNumber: template.cardNumber,
-        completionEffect: template.completionEffect || '',
-      });
+      tierDecks[template.tier].push(createLoadedContract(template));
     }
   }
 
@@ -496,18 +488,6 @@ const EVENT_CARDS = [
     name: 'Archery Contest', tier: 'A', copies: 1,
     whenPlayed: { drawCard: true, addToBag: { ranged: 3 } },
     ongoing: {},
-    roundEnd: 'archeryContest',
-  },
-  {
-    name: 'Disbanded Troops', tier: 'A', copies: 1,
-    whenPlayed: { drawCard: true, gainEquipmentAll: 1 },
-    ongoing: { recruitCostReduction: 1 },
-    roundEnd: null,
-  },
-  {
-    name: 'Drought', tier: 'A', copies: 1,
-    whenPlayed: { drawCard: true },
-    ongoing: { campaignCostDelta: 2 },
     roundEnd: null,
   },
   {
@@ -627,19 +607,7 @@ function createRewardsDeck() {
   for (const template of CONTRACT_CARDS) {
     if (template.tier !== 'R') continue;
     for (let i = 0; i < template.copies; i += 1) {
-      cards.push({
-        id: uid('reward-contract'),
-        kind: 'contract',
-        title: template.title,
-        type: template.type,
-        region: template.region,
-        requirements: cloneTroops(template.requirements),
-        renown: template.renown,
-        coins: template.coins,
-        tier: template.tier,
-        cardNumber: template.cardNumber,
-        completionEffect: template.completionEffect || '',
-      });
+      cards.push(createLoadedContract(template, 'reward-contract'));
     }
   }
   return shuffle(cards);
@@ -752,7 +720,7 @@ function createInitialGame(config) {
     bag: { melee: 9, ranged: 5, mounted: 3 },
     market: { melee: 3, ranged: 1, mounted: 1 },
     supply: { melee: 23, ranged: 12, mounted: 8, elite: 24 },
-    armoury: config.playerCount * 4,
+    armoury: config.playerCount * 3,
     eventsEnabled,
     tierDecks: createTierDecks(eventsEnabled),
     rewardsDeck: createRewardsDeck(),
@@ -1103,44 +1071,6 @@ function finalizeContractBattle(game, player, contract, rolls, availableTroops, 
   return { success, dead, wounded, rolls, assigned };
 }
 
-function resolveContractBattle(game, player, contract, availableTroops) {
-  const rolls = rollContractDice(availableTroops);
-
-  // AI: spend equipment to reroll low-value dice (dead 1-2, then wounded 3)
-  // when losing, one at a time.
-  // Stop as soon as the battle is projected to be won or equipment runs out.
-  if (player.equipment > 0) {
-    const types = ['melee', 'ranged', 'mounted'];
-    let spent = 0;
-    while (player.equipment > 0) {
-      const preview = previewBattleOutcome(player, contract, rolls);
-      if (preview.willSucceed) break;
-      // Reroll the lowest-value die first (1, then 2, then 3) to maximise value.
-      let rerolled = false;
-      for (const face of [1, 2, 3]) {
-        for (const type of types) {
-          const idx = rolls[type].indexOf(face);
-          if (idx !== -1) {
-            rolls[type][idx] = Math.ceil(Math.random() * 6);
-            player.equipment -= 1;
-            game.armoury += 1;
-            spent += 1;
-            rerolled = true;
-            break;
-          }
-        }
-        if (rerolled) break;
-      }
-      if (!rerolled) break; // No eligible low-value dice remain to reroll
-    }
-    if (spent > 0) {
-      addEffect(game, `${player.name} used ${spent} equipment to reroll dice.`);
-    }
-  }
-
-  return finalizeContractBattle(game, player, contract, rolls, availableTroops);
-}
-
 function canPlayContracts(player, contracts, smugglerTargetId = null) {
   const req = emptyTroops();
   for (const card of contracts) {
@@ -1266,7 +1196,12 @@ function runCampaign(game, player, selectedContracts) {
       continue;
     }
 
-    const outcome = resolveContractBattle(game, player, contract, availableTroops);
+    const outcome = resolveContractBattle(game, player, contract, availableTroops, {
+      rollContractDice,
+      previewBattleOutcome,
+      finalizeContractBattle,
+      addEffect,
+    });
 
     if (outcome.success) {
       completed.push(contract);

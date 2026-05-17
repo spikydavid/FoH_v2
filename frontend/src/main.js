@@ -210,6 +210,8 @@ function renderStartScreen() {
     runBatchWithProgress({ playerCount, aiModels, disableEvents }, batchCount);
   });
 
+  const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
+
   async function doSync(endpoint, btnId, statusId) {
     const btn = document.querySelector(`#${btnId}`);
     const status = document.querySelector(`#${statusId}`);
@@ -218,7 +220,7 @@ function renderStartScreen() {
     status.textContent = '';
     status.className = 'sync-status';
     try {
-      const res = await fetch(`http://localhost:3000/api/${endpoint}`, { method: 'POST' });
+      const res = await fetch(`${apiBaseUrl}/api/${endpoint}`, { method: 'POST' });
       const json = await res.json();
       if (json.success) {
         status.textContent = `✓ ${json.count} cards synced (${json.syncedAt}). Reload the page to apply.`;
@@ -698,14 +700,17 @@ function renderHumanControls(active) {
 
   if (game.humanState.step === 'market') {
     const specialistRulesText = (card) => (card.effect || 'No specialist rule text available.')
-      .replace(/"/g, '&quot;');
+      .replace(/&/g, '&amp;')
+      .replace(/"/g, '&quot;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
 
     const specialists = specialistCards
       .map(
         (card) => `
           <div class="specialist-row">
-            <button class="action" data-action="hire" data-id="${card.id}">Hire ${card.name} (${card.cost})</button>
-            <span class="info-tip" title="${specialistRulesText(card)}" aria-label="${card.name} rule">i</span>
+            <button class="action" data-action="hire" data-id="${card.id}" title="${specialistRulesText(card)}">Hire ${card.name} (${card.cost})</button>
+            <span class="info-tip" data-tip="${specialistRulesText(card)}" aria-label="${card.name} rule">i</span>
           </div>
         `,
       )
@@ -729,28 +734,21 @@ function renderHumanControls(active) {
 
         <div class="market-layout">
           <div class="market-panel-box">
-            <h4>Market Purchases</h4>
-            <div class="market-split">
-              <div class="market-column">
-                <button class="action" data-action="buy-eq">Buy Equipment (1)</button>
-                <button class="action" data-action="buy-market" data-type="melee">Buy Market Melee (2)</button>
-                <button class="action" data-action="buy-market" data-type="ranged">Buy Market Ranged (3)</button>
-                <button class="action" data-action="buy-market" data-type="mounted">Buy Market Mounted (4)</button>
-              </div>
-              <div class="market-column">
-                <button class="action" data-action="buy-supply" data-type="melee">Buy Supply Melee (4)</button>
-                <button class="action" data-action="buy-supply" data-type="ranged">Buy Supply Ranged (6)</button>
-                <button class="action" data-action="buy-supply" data-type="mounted">Buy Supply Mounted (8)</button>
-              </div>
+            <h4>Market & Equipment</h4>
+            <div class="market-column">
+              <button class="action" data-action="buy-eq">Buy Equipment (1)</button>
+              <button class="action" data-action="buy-market" data-type="melee">Buy Market Melee (2)</button>
+              <button class="action" data-action="buy-market" data-type="ranged">Buy Market Ranged (3)</button>
+              <button class="action" data-action="buy-market" data-type="mounted">Buy Market Mounted (4)</button>
             </div>
           </div>
 
           <div class="market-panel-box">
-            <h4>Offer Actions</h4>
+            <h4>Supply Purchases</h4>
             <div class="market-column">
-              <button class="action" data-action="loan">Take Loan</button>
-              <button class="primary" data-action="to-campaign">Finish Market</button>
-              <button class="action undo-btn" data-action="undo" ${canUndo ? '' : 'disabled'}>↩ Undo</button>
+              <button class="action" data-action="buy-supply" data-type="melee">Buy Supply Melee (4)</button>
+              <button class="action" data-action="buy-supply" data-type="ranged">Buy Supply Ranged (6)</button>
+              <button class="action" data-action="buy-supply" data-type="mounted">Buy Supply Mounted (8)</button>
             </div>
           </div>
 
@@ -765,6 +763,15 @@ function renderHumanControls(active) {
             <h4>Discharge Retinue</h4>
             <div class="market-column">
               ${discharge || '<p class="meta">No specialists in retinue.</p>'}
+            </div>
+          </div>
+
+          <div class="market-panel-box offer-actions-box">
+            <h4>Offer Actions</h4>
+            <div class="market-column">
+              <button class="action" data-action="loan">Take Loan</button>
+              <button class="primary" data-action="to-campaign">Finish Market</button>
+              <button class="action undo-btn" data-action="undo" ${canUndo ? '' : 'disabled'}>↩ Undo</button>
             </div>
           </div>
         </div>
@@ -962,13 +969,6 @@ function renderGame() {
 
       <section class="panel cols">
         <div>
-          <h3>Active Player State</h3>
-          <p>Coins: ${active.money} | Debt: ${active.debts} | Equipment: ${active.equipment} | Elite: ${active.elite}</p>
-          <p>Troops: M${active.troops.melee} / R${active.troops.ranged} / Mo${active.troops.mounted}</p>
-          <p>Retinue: ${active.retinue.map((s) => s.name).join(', ') || 'None'}</p>
-          <p>Event in play: ${active.eventInPlay?.name || 'None'}</p>
-        </div>
-        <div>
           <h3>Common Resources</h3>
           <p>Market: M${game.market.melee} / R${game.market.ranged} / Mo${game.market.mounted}</p>
           <p>Bag: M${game.bag.melee} / R${game.bag.ranged} / Mo${game.bag.mounted}</p>
@@ -979,6 +979,8 @@ function renderGame() {
           <p>Tier C deck: C${tierCount('C', 'contract')} / S${tierCount('C', 'specialist')} / E${tierCount('C', 'event')}</p>
           <p>Main decks total: C${totalContracts} / S${totalSpecialists} / E${totalEvents}</p>
           <p>Rewards deck (Tier R contracts): ${game.rewardsDeck.length}</p>
+        </div>
+        <div>
           ${renderOffer()}
         </div>
       </section>
