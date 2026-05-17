@@ -93,7 +93,7 @@ function renderTurnEffects() {
     return '<div>No triggered effects yet this turn.</div>';
   }
 
-  const phases = ['Income', 'Event', 'Enlist', 'Market', 'Campaign', 'Muster', 'Upkeep', 'General'];
+  const phases = ['Income', 'Event', 'Enlist', 'Market', 'Campaign', 'Muster', 'General'];
   const grouped = {};
   for (const effect of game.turnEffects) {
     const phase = effect.phase || 'General';

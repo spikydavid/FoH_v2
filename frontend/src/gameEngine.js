@@ -130,7 +130,7 @@ function addTroops(target, source) {
   target.mounted += source.mounted || 0;
 }
 
-function getRuleset(game) {
+export function getRuleset(game) {
   const ruleset = game?.ruleset || RULESET_CLASSIC;
   return ECONOMY_RULES[ruleset] ? ruleset : RULESET_CLASSIC;
 }
@@ -161,111 +161,6 @@ function applyTurnIncome(game, player) {
 
   player.money += income;
   addEffect(game, 'Income', `${player.name} gained ${income} income.`);
-}
-
-function drawRandomDice(game) {
-  const pool = [];
-  if (game.bag.melee > 0) pool.push('melee');
-  if (game.bag.ranged > 0) pool.push('ranged');
-  if (game.bag.mounted > 0) pool.push('mounted');
-  if (pool.length === 0) return null;
-  const type = sample(pool);
-  game.bag[type] -= 1;
-  return type;
-}
-
-function createV2Lots(game) {
-  const lotCount = 2 * game.players.length;
-  const lots = [];
-  
-  // Create lots by drawing 3 dice at random from the bag for each lot
-  for (let i = 0; i < lotCount; i++) {
-    const lot = { melee: 0, ranged: 0, mounted: 0 };
-    for (let j = 0; j < 3; j++) {
-      const type = drawRandomDice(game);
-      if (type) lot[type] += 1;
-    }
-    lots.push(lot);
-  }
-  
-  return lots;
-}
-
-function playV2MarketPhase(game) {
-  // Move all dice from market and supply back to the bag
-  game.bag.melee += game.market.melee;
-  game.bag.ranged += game.market.ranged;
-  game.bag.mounted += game.market.mounted;
-  game.market = { melee: 0, ranged: 0, mounted: 0 };
-  
-  game.bag.melee += game.supply.melee;
-  game.bag.ranged += game.supply.ranged;
-  game.bag.mounted += game.supply.mounted;
-  game.supply = { melee: 0, ranged: 0, mounted: 0 };
-  
-  addLog(game, 'V2 Market: All dice moved to muster bag.');
-  
-  // Create lots
-  const lots = createV2Lots(game);
-  addLog(game, `V2 Market: Created ${lots.length} lots for selection.`);
-  
-  // Players select in turn order: first selection round (1, 2, 3, 4, ...)
-  for (let i = 0; i < game.players.length; i++) {
-    const player = game.players[i];
-    const bestLotIdx = selectBestV2Lot(lots, player);
-    if (bestLotIdx >= 0) {
-      const selectedLot = lots[bestLotIdx];
-      player.troops.melee += selectedLot.melee;
-      player.troops.ranged += selectedLot.ranged;
-      player.troops.mounted += selectedLot.mounted;
-      lots.splice(bestLotIdx, 1);
-      addLog(game, `${player.name} selected a lot (${selectedLot.melee}M, ${selectedLot.ranged}R, ${selectedLot.mounted}Mo).`);
-    }
-  }
-  
-  // Players select in reverse turn order: second selection round (4, 3, 2, 1, ...)
-  for (let i = game.players.length - 1; i >= 0; i--) {
-    const player = game.players[i];
-    const bestLotIdx = selectBestV2Lot(lots, player);
-    if (bestLotIdx >= 0) {
-      const selectedLot = lots[bestLotIdx];
-      player.troops.melee += selectedLot.melee;
-      player.troops.ranged += selectedLot.ranged;
-      player.troops.mounted += selectedLot.mounted;
-      lots.splice(bestLotIdx, 1);
-      addLog(game, `${player.name} selected a second lot (${selectedLot.melee}M, ${selectedLot.ranged}R, ${selectedLot.mounted}Mo).`);
-    }
-  }
-}
-
-function selectBestV2Lot(lots, player) {
-  if (lots.length === 0) return -1;
-  
-  // Simple AI: select the lot with the most melee troops (prioritize melee)
-  let bestIdx = 0;
-  let bestScore = -Infinity;
-  
-  for (let i = 0; i < lots.length; i++) {
-    const lot = lots[i];
-    // Score based on: melee (weight 2), ranged (weight 1.5), mounted (weight 1.5)
-    const score = lot.melee * 2 + lot.ranged * 1.5 + lot.mounted * 1.5;
-    if (score > bestScore) {
-      bestScore = score;
-      bestIdx = i;
-    }
-  }
-  
-  return bestIdx;
-}
-
-function applyUpkeepV2(game, player) {
-  if (getRuleset(game) !== RULESET_V2) return;
-  
-  const troopCount = troopTotal(player.troops);
-  const upkeepCost = troopCount * 3;
-  
-  player.money -= upkeepCost;
-  addEffect(game, 'Upkeep', `${player.name} paid ${upkeepCost} upkeep (${troopCount} troops @ 3 coin each).`);
 }
 
 function modelForSeat(playerIndex, playerCount) {
@@ -831,7 +726,7 @@ export function contractCost(contracts, discount = 0) {
   return Math.max(0, cost - discount);
 }
 
-function addLog(game, text) {
+export function addLog(game, text) {
   game.log.unshift(text);
   if (game.log.length > 120) {
     game.log.pop();
@@ -856,7 +751,7 @@ function resetTurnEffects(game) {
   game.turnEffects = [];
 }
 
-function setTurnPhase(game, phase) {
+export function setTurnPhase(game, phase) {
   game.currentPhase = phase;
 }
 
@@ -902,7 +797,6 @@ function createInitialGame(config) {
       drawChoicesRemaining: 0,
     },
     undoStack: [],
-    v2MarketDoneThisRound: false,
   };
 
   for (const tier of MAIN_TIERS) {
@@ -1397,7 +1291,7 @@ function drawCardToHand(game, player, source) {
   return true;
 }
 
-function refreshOffer(game) {
+export function refreshOffer(game) {
   for (const tier of MAIN_TIERS) {
     game.offer[tier] = game.offer[tier].filter(Boolean);
     const offerCard = drawFromDeck(game, 'any', { preferredTier: tier });
@@ -1745,7 +1639,7 @@ function computePlayerScore(player) {
   };
 }
 
-function maybeEndGame(game) {
+export function maybeEndGame(game) {
   const active = game.players[game.currentPlayerIndex];
   if (!game.startedFinalRound && active.scorePile.length >= END_GAME_CONTRACT_TARGET) {
     game.startedFinalRound = true;
@@ -1754,11 +1648,10 @@ function maybeEndGame(game) {
   }
 }
 
-function nextPlayer(game) {
+export function nextPlayer(game) {
   game.currentPlayerIndex = (game.currentPlayerIndex + 1) % game.players.length;
   if (game.currentPlayerIndex === 0) {
     game.round += 1;
-    game.v2MarketDoneThisRound = false;
     refreshOffer(game);
     addLog(game, `Round ${game.round} begins.`);
   }
@@ -1825,19 +1718,11 @@ export function runAiTurn(game) {
     }
   }
 
-  // V2 market phase happens once per round at the start of Player 1's turn
-  if (getRuleset(game) === RULESET_V2 && game.currentPlayerIndex === 0 && !game.v2MarketDoneThisRound) {
-    setTurnPhase(game, 'Market');
-    playV2MarketPhase(game);
-    game.v2MarketDoneThisRound = true;
-  } else if (getRuleset(game) !== RULESET_V2) {
-    // Classic ruleset: individual enlist and market phases
-    setTurnPhase(game, 'Enlist');
-    enlist(game);
+  setTurnPhase(game, 'Enlist');
+  enlist(game);
 
-    setTurnPhase(game, 'Market');
-    playAiMarket(game, player);
-  }
+  setTurnPhase(game, 'Market');
+  playAiMarket(game, player);
 
   setTurnPhase(game, 'Campaign');
   const chosen = chooseAiContracts(player);
@@ -1847,12 +1732,6 @@ export function runAiTurn(game) {
   muster(game, player);
   autoDrawForAi(game, player);
   refreshOffer(game);
-
-  // V2 upkeep phase: 3 coins per troop
-  if (getRuleset(game) === RULESET_V2) {
-    setTurnPhase(game, 'Upkeep');
-    applyUpkeepV2(game, player);
-  }
 
   maybeEndGame(game);
   if (!game.isFinished) {
@@ -1966,43 +1845,16 @@ export function beginInteractiveTurn(game) {
     }
   }
 
-  // V2 market phase happens once per round at the start of Player 1's turn
-  if (getRuleset(game) === RULESET_V2 && game.currentPlayerIndex === 0 && !game.v2MarketDoneThisRound) {
-    setTurnPhase(game, 'Market');
-    playV2MarketPhase(game);
-    game.v2MarketDoneThisRound = true;
-    // Skip directly to campaign for interactive mode in V2
-    setTurnPhase(game, 'Campaign');
-    game.undoStack = [];
-    game.humanState = {
-      needsInput: true,
-      step: 'campaign',
-      selectedContractIds: [],
-      drawChoicesRemaining: 0,
-    };
-  } else if (getRuleset(game) !== RULESET_V2) {
-    // Classic ruleset: enlist and market phases
-    setTurnPhase(game, 'Enlist');
-    enlist(game);
-    setTurnPhase(game, 'Market');
-    game.undoStack = [];
-    game.humanState = {
-      needsInput: true,
-      step: 'market',
-      selectedContractIds: [],
-      drawChoicesRemaining: 0,
-    };
-  } else {
-    // V2 but not player 1 or market already done - skip to campaign
-    setTurnPhase(game, 'Campaign');
-    game.undoStack = [];
-    game.humanState = {
-      needsInput: true,
-      step: 'campaign',
-      selectedContractIds: [],
-      drawChoicesRemaining: 0,
-    };
-  }
+  setTurnPhase(game, 'Enlist');
+  enlist(game);
+  setTurnPhase(game, 'Market');
+  game.undoStack = [];
+  game.humanState = {
+    needsInput: true,
+    step: 'market',
+    selectedContractIds: [],
+    drawChoicesRemaining: 0,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -2290,12 +2142,6 @@ export function humanDrawCard(game, source) {
 
   game.humanState.drawChoicesRemaining -= 1;
   if (game.humanState.drawChoicesRemaining <= 0) {
-    // V2 upkeep phase: 3 coins per troop
-    if (getRuleset(game) === RULESET_V2) {
-      setTurnPhase(game, 'Upkeep');
-      applyUpkeepV2(game, player);
-    }
-
     refreshOffer(game);
     maybeEndGame(game);
     game.humanState = {
