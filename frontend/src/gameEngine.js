@@ -1,13 +1,7 @@
 import { CONTRACT_CARDS } from './contractsData';
 import { SPECIALIST_CARDS } from './specialistsData';
-import {
-  classifyRolls as classifyRollsContract,
-  finalizeContractBattle as finalizeContractBattleContract,
-  isSacrificeEligibleRoll,
-  previewBattleOutcome as previewBattleOutcomeContract,
-  resolveContractBattle as resolveContractBattleContract,
-  rollContractDice as rollContractDiceContract,
-} from './contractResolution';
+import { isSacrificeEligibleRoll } from './contractResolution';
+import { createBattleRuntime } from './battleRuntime';
 
 const SET_SCORES = {
   1: 0,
@@ -21,6 +15,30 @@ const SET_SCORES = {
 const END_GAME_CONTRACT_TARGET = 10;
 const MAX_SIM_TURNS = 50;
 const SIM_HARD_SAFETY = 2000;
+
+const RULESET_CLASSIC = 'classic';
+const RULESET_V2 = 'v2';
+
+const ECONOMY_RULES = {
+  [RULESET_CLASSIC]: {
+    troopCosts: {
+      market: { melee: 2, ranged: 3, mounted: 4 },
+      supply: { melee: 4, ranged: 6, mounted: 8 },
+    },
+    equipmentCost: 1,
+    specialistHireSurcharge: 0,
+    loanAmount: 10,
+  },
+  [RULESET_V2]: {
+    troopCosts: {
+      market: { melee: 3, ranged: 4, mounted: 5 },
+      supply: { melee: 5, ranged: 7, mounted: 9 },
+    },
+    equipmentCost: 2,
+    specialistHireSurcharge: 1,
+    loanAmount: 6,
+  },
+};
 
 const AI_MARKET_MODELS = [
   {
@@ -110,6 +128,39 @@ function addTroops(target, source) {
   target.melee += source.melee || 0;
   target.ranged += source.ranged || 0;
   target.mounted += source.mounted || 0;
+}
+
+function getRuleset(game) {
+  const ruleset = game?.ruleset || RULESET_CLASSIC;
+  return ECONOMY_RULES[ruleset] ? ruleset : RULESET_CLASSIC;
+}
+
+function economyRulesForGame(game) {
+  return ECONOMY_RULES[getRuleset(game)];
+}
+
+function troopCostsForGame(game) {
+  return economyRulesForGame(game).troopCosts;
+}
+
+function specialistHireCost(game, card) {
+  return card.cost + economyRulesForGame(game).specialistHireSurcharge;
+}
+
+function loanAmountForGame(game) {
+  return economyRulesForGame(game).loanAmount;
+}
+
+function applyTurnIncome(game, player) {
+  if (getRuleset(game) !== RULESET_V2) return;
+
+  const contractCountBonus = Math.min(3, Math.floor(player.scorePile.length / 2));
+  const typeDiversity = new Set(player.scorePile.map((card) => card.type)).size;
+  const diversityBonus = Math.min(2, typeDiversity);
+  const income = Math.max(0, 3 + contractCountBonus + diversityBonus - player.debts);
+
+  player.money += income;
+  addEffect(game, 'Income', `${player.name} gained ${income} income.`);
 }
 
 function modelForSeat(playerIndex, playerCount) {
@@ -714,6 +765,7 @@ function createInitialGame(config) {
   const eventsEnabled = !config.disableEvents;
 
   const game = {
+    ruleset: config.ruleset || RULESET_CLASSIC,
     mode: config.mode,
     phase: 'setup',
     round: 1,
@@ -863,46 +915,21 @@ function specialistBonus(player) {
   return bonus;
 }
 
-const classifyRollsForBattle = (rolls, player) => classifyRollsContract(rolls, player, {
+const battleRuntime = createBattleRuntime({
+  rand,
   emptyTroops,
   hasSpecialist,
-});
-
-const rollContractDiceForBattle = (availableTroops) => rollContractDiceContract(availableTroops, rand);
-
-const previewBattleOutcomeForBattle = (player, contract, rolls, sacrificedIndices = null) => previewBattleOutcomeContract(
-  player,
-  contract,
-  rolls,
-  sacrificedIndices,
-  {
-    classifyRolls: classifyRollsForBattle,
-    cloneTroops,
-  },
-);
-
-const finalizeContractBattleForBattle = (
-  game,
-  player,
-  contract,
-  rolls,
-  availableTroops,
-  humanSacrificed = null,
-) => finalizeContractBattleContract(game, player, contract, rolls, availableTroops, humanSacrificed, {
   cloneTroops,
-  classifyRolls: classifyRollsForBattle,
   specialistBonus,
-  hasSpecialist,
   gainEquipment,
   addEffect,
   countFace,
   countSpecialist,
   drawFromDeck,
-  emptyTroops,
 });
 
 export function previewBattleOutcome(player, contract, rolls, sacrificedIndices = null) {
-  return previewBattleOutcomeForBattle(player, contract, rolls, sacrificedIndices);
+  return battleRuntime.previewBattleOutcome(player, contract, rolls, sacrificedIndices);
 }
 
 function canPlayContracts(player, contracts, smugglerTargetId = null) {
@@ -1030,12 +1057,7 @@ function runCampaign(game, player, selectedContracts) {
       continue;
     }
 
-    const outcome = resolveContractBattleContract(game, player, contract, availableTroops, {
-      rollContractDice: rollContractDiceForBattle,
-      previewBattleOutcome: previewBattleOutcomeForBattle,
-      finalizeContractBattle: finalizeContractBattleForBattle,
-      addEffect,
-    });
+    const outcome = battleRuntime.resolveContractBattle(game, player, contract, availableTroops);
 
     if (outcome.success) {
       completed.push(contract);
@@ -1352,6 +1374,7 @@ function getCampaignDiscount(player) {
 }
 
 function estimateTroopPurchasePlan(game, player, contracts) {
+  const costs = troopCostsForGame(game);
   const req = emptyTroops();
   for (const card of contracts) {
     req.melee += card.requirements.melee;
@@ -1380,8 +1403,8 @@ function estimateTroopPurchasePlan(game, player, contracts) {
   };
 
   for (const type of ['melee', 'ranged', 'mounted']) {
-    const marketCost = type === 'melee' ? 2 : type === 'ranged' ? 3 : 4;
-    const supplyCost = marketCost * 2;
+    const marketCost = costs.market[type];
+    const supplyCost = costs.supply[type];
     let remaining = deficits[type];
     remaining -= take('market', type, remaining, marketCost);
     remaining -= take('supply', type, remaining, supplyCost);
@@ -1457,11 +1480,14 @@ function executeTroopPurchasePlan(game, player, troopPlan) {
 }
 
 function playAiMarket(game, player) {
+  const troopCosts = troopCostsForGame(game);
+  const equipmentCost = economyRulesForGame(game).equipmentCost;
+  const loanAmount = loanAmountForGame(game);
   const model = player.aiModel || DEFAULT_AI_MARKET_MODEL;
 
   const maybeNoLoanPlan = bestAiCampaignPlan(game, player, player.money, model);
   if (mayTakeLoan(player)) {
-    const maybeLoanPlan = bestAiCampaignPlan(game, player, player.money + 10, model);
+    const maybeLoanPlan = bestAiCampaignPlan(game, player, player.money + loanAmount, model);
     const noLoanScore = maybeNoLoanPlan ? maybeNoLoanPlan.value : -Infinity;
     // Make loans progressively less attractive: each additional debt raises both
     // the score penalty and the decision threshold.
@@ -1470,9 +1496,9 @@ function playAiMarket(game, player) {
     const debtAwareThreshold = model.loanThreshold + (projectedDebts * 2.0);
     const loanScore = maybeLoanPlan ? (maybeLoanPlan.value - debtScorePenalty) : -Infinity;
     if (loanScore > 0 && loanScore > noLoanScore + debtAwareThreshold) {
-      player.money += 10;
+      player.money += loanAmount;
       player.debts += 1;
-      addLog(game, `${player.name} took a loan.`);
+      addLog(game, `${player.name} took a loan (${loanAmount}).`);
     }
   }
 
@@ -1499,18 +1525,19 @@ function playAiMarket(game, player) {
     });
 
   for (const card of specialistCards) {
+    const hireCost = specialistHireCost(game, card);
     if (player.retinue.length >= 3) break;
-    if (!canAfford(player, card.cost)) continue;
+    if (!canAfford(player, hireCost)) continue;
 
     const isCostReducer = card.name === 'Forager' || card.name === 'Cook';
     const planBeforeHire = bestAiCampaignPlan(game, player, player.money, model);
     const reserve = planBeforeHire ? planBeforeHire.totalSpend : 0;
-    if (!isCostReducer && player.money - card.cost < reserve) continue;
+    if (!isCostReducer && player.money - hireCost < reserve) continue;
 
-    player.money -= card.cost;
+    player.money -= hireCost;
     player.retinue.push(card);
     player.hand = player.hand.filter((c) => c.id !== card.id);
-    addLog(game, `${player.name} hired specialist ${card.name}.`);
+    addLog(game, `${player.name} hired specialist ${card.name} for ${hireCost}.`);
     applySpecialistOnHire(game, player, card);
   }
 
@@ -1522,12 +1549,12 @@ function playAiMarket(game, player) {
   const reserveForCampaign = bestPlan ? contractCost(bestPlan.bundle, getCampaignDiscount(player)) : 0;
 
   const buyOrder = [
-    { source: 'market', type: 'melee', cost: 2 },
-    { source: 'market', type: 'ranged', cost: 3 },
-    { source: 'market', type: 'mounted', cost: 4 },
-    { source: 'supply', type: 'melee', cost: 4 },
-    { source: 'supply', type: 'ranged', cost: 6 },
-    { source: 'supply', type: 'mounted', cost: 8 },
+    { source: 'market', type: 'melee', cost: troopCosts.market.melee },
+    { source: 'market', type: 'ranged', cost: troopCosts.market.ranged },
+    { source: 'market', type: 'mounted', cost: troopCosts.market.mounted },
+    { source: 'supply', type: 'melee', cost: troopCosts.supply.melee },
+    { source: 'supply', type: 'ranged', cost: troopCosts.supply.ranged },
+    { source: 'supply', type: 'mounted', cost: troopCosts.supply.mounted },
   ];
 
   let purchased = true;
@@ -1545,8 +1572,8 @@ function playAiMarket(game, player) {
     }
   }
 
-  while (player.money - 1 >= reserveForCampaign && game.armoury > 0 && player.equipment < 6) {
-    player.money -= 1;
+  while (player.money - equipmentCost >= reserveForCampaign && game.armoury > 0 && player.equipment < 6) {
+    player.money -= equipmentCost;
     gainEquipment(game, player, 1);
   }
 }
@@ -1673,6 +1700,10 @@ export function runAiTurn(game) {
   const player = getActivePlayer(game);
   player.turnsTaken += 1;
   resetTurnEffects(game);
+
+  setTurnPhase(game, 'Income');
+  applyTurnIncome(game, player);
+
   setTurnPhase(game, 'Event');
 
   if (player.eventInPlay) {
@@ -1791,6 +1822,10 @@ export function runMultipleSimulations(config, count) {
 export function beginInteractiveTurn(game) {
   const player = getActivePlayer(game);
   resetTurnEffects(game);
+
+  setTurnPhase(game, 'Income');
+  applyTurnIncome(game, player);
+
   setTurnPhase(game, 'Event');
 
   if (!player.isHuman) {
@@ -1855,10 +1890,11 @@ export function humanTakeLoan(game) {
   saveUndoSnapshot(game);
   setTurnPhase(game, 'Market');
   const player = getActivePlayer(game);
+  const loanAmount = loanAmountForGame(game);
   if (!mayTakeLoan(player)) { game.undoStack.pop(); return false; }
-  player.money += 10;
+  player.money += loanAmount;
   player.debts += 1;
-  addLog(game, `${player.name} took a loan.`);
+  addLog(game, `${player.name} took a loan (${loanAmount}).`);
   return true;
 }
 
@@ -1866,8 +1902,9 @@ export function humanBuyTroop(game, from, type) {
   saveUndoSnapshot(game);
   setTurnPhase(game, 'Market');
   const player = getActivePlayer(game);
-  const marketCosts = { melee: 2, ranged: 3, mounted: 4 };
-  const supplyCosts = { melee: 4, ranged: 6, mounted: 8 };
+  const troopCosts = troopCostsForGame(game);
+  const marketCosts = troopCosts.market;
+  const supplyCosts = troopCosts.supply;
   const cost = from === 'market' ? marketCosts[type] : supplyCosts[type];
 
   if (!canAfford(player, cost)) { game.undoStack.pop(); return false; }
@@ -1889,8 +1926,9 @@ export function humanBuyEquipment(game) {
   saveUndoSnapshot(game);
   setTurnPhase(game, 'Market');
   const player = getActivePlayer(game);
-  if (!canAfford(player, 1) || game.armoury <= 0) { game.undoStack.pop(); return false; }
-  player.money -= 1;
+  const equipmentCost = economyRulesForGame(game).equipmentCost;
+  if (!canAfford(player, equipmentCost) || game.armoury <= 0) { game.undoStack.pop(); return false; }
+  player.money -= equipmentCost;
   gainEquipment(game, player, 1);
   return true;
 }
@@ -1903,9 +1941,10 @@ export function humanHireSpecialist(game, cardId) {
 
   const card = player.hand.find((c) => c.id === cardId && c.kind === 'specialist');
   if (!card) { game.undoStack.pop(); return false; }
-  if (!canAfford(player, card.cost)) { game.undoStack.pop(); return false; }
+  const hireCost = specialistHireCost(game, card);
+  if (!canAfford(player, hireCost)) { game.undoStack.pop(); return false; }
 
-  player.money -= card.cost;
+  player.money -= hireCost;
   player.retinue.push(card);
   player.hand = player.hand.filter((c) => c.id !== card.id);
   applySpecialistOnHire(game, player, card);
@@ -2020,7 +2059,7 @@ export function humanRunCampaign(game) {
     contractQueue: battleQueue.slice(1),
     currentContract: battleQueue[0],
     availableTroops,
-    rolls: rollContractDiceForBattle(availableTroops),
+    rolls: battleRuntime.rollContractDice(availableTroops),
     sacrificed: { melee: [], ranged: [], mounted: [] },
   };
   game.humanState.step = 'battle';
@@ -2064,7 +2103,7 @@ export function humanConfirmBattle(game) {
   const pb = game.humanState.pendingBattle;
   const { currentContract, rolls, availableTroops } = pb;
 
-  const outcome = finalizeContractBattleForBattle(game, player, currentContract, rolls, availableTroops, pb.sacrificed);
+  const outcome = battleRuntime.finalizeContractBattle(game, player, currentContract, rolls, availableTroops, pb.sacrificed);
 
   if (outcome.success) {
     let rewardCoins = currentContract.coins + countSpecialist(player, 'Paymaster');
@@ -2084,7 +2123,7 @@ export function humanConfirmBattle(game) {
   const next = pb.contractQueue.shift();
   if (next) {
     pb.currentContract = next;
-    pb.rolls = rollContractDiceForBattle(pb.availableTroops);
+    pb.rolls = battleRuntime.rollContractDice(pb.availableTroops);
     pb.sacrificed = { melee: [], ranged: [], mounted: [] };
   } else {
     game.humanState.pendingBattle = null;

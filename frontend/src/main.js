@@ -23,12 +23,65 @@ import {
   runMultipleSimulations,
   scoreTable,
 } from './gameEngine';
+import {
+  createGameV2,
+  runMultipleSimulationsV2,
+} from './gameEngineV2';
 import { CONTRACT_DATA_SYNC } from './contractsData';
 import { SPECIALIST_DATA_SYNC } from './specialistsData';
 
 const app = document.querySelector('#app');
 let game = null;
 let batchResults = null;
+let batchRuleset = 'classic';
+
+const UI_ECONOMY_BY_RULESET = {
+  classic: {
+    troopCosts: {
+      market: { melee: 2, ranged: 3, mounted: 4 },
+      supply: { melee: 4, ranged: 6, mounted: 8 },
+    },
+    equipmentCost: 1,
+    specialistHireSurcharge: 0,
+    loanAmount: 10,
+    label: 'Classic',
+  },
+  v2: {
+    troopCosts: {
+      market: { melee: 3, ranged: 4, mounted: 5 },
+      supply: { melee: 5, ranged: 7, mounted: 9 },
+    },
+    equipmentCost: 2,
+    specialistHireSurcharge: 1,
+    loanAmount: 6,
+    label: 'V2',
+  },
+};
+
+function uiEconomyForRuleset(ruleset) {
+  return UI_ECONOMY_BY_RULESET[ruleset] || UI_ECONOMY_BY_RULESET.classic;
+}
+
+function uiEconomyForGame(gameState) {
+  return uiEconomyForRuleset(gameState?.ruleset || 'classic');
+}
+
+function labelForRuleset(ruleset) {
+  return uiEconomyForRuleset(ruleset).label;
+}
+
+function gameApiForRuleset(ruleset) {
+  if (ruleset === 'v2') {
+    return {
+      createGame: createGameV2,
+      runMultipleSimulations: runMultipleSimulationsV2,
+    };
+  }
+  return {
+    createGame,
+    runMultipleSimulations,
+  };
+}
 
 function contractText(card) {
   const reward = card.tier === 'R' && card.completionEffect ? ` | Reward: ${card.completionEffect.replace(/\*\*/g, '')}` : '';
@@ -40,7 +93,7 @@ function renderTurnEffects() {
     return '<div>No triggered effects yet this turn.</div>';
   }
 
-  const phases = ['Event', 'Enlist', 'Market', 'Campaign', 'Muster', 'General'];
+  const phases = ['Income', 'Event', 'Enlist', 'Market', 'Campaign', 'Muster', 'General'];
   const grouped = {};
   for (const effect of game.turnEffects) {
     const phase = effect.phase || 'General';
@@ -123,6 +176,12 @@ function renderStartScreen() {
           <button id="start-batch">Batch Simulation</button>
         </div>
         <form id="config-form">
+          <label>Ruleset
+            <select id="ruleset">
+              <option value="classic" selected>Classic</option>
+              <option value="v2">V2 (new market + income)</option>
+            </select>
+          </label>
           <label>Players (2-4)
             <input id="player-count" type="number" min="2" max="4" value="4" />
           </label>
@@ -174,12 +233,19 @@ function renderStartScreen() {
 
   const playersInput = document.querySelector('#player-count');
   const humansInput = document.querySelector('#human-count');
+  const rulesetInput = document.querySelector('#ruleset');
+
+  function selectedRuleset() {
+    return rulesetInput?.value === 'v2' ? 'v2' : 'classic';
+  }
 
   document.querySelector('#start-sim').addEventListener('click', () => {
     const playerCount = Math.max(2, Math.min(4, Number(playersInput.value) || 4));
     const disableEvents = document.querySelector('#disable-events').checked;
+    const ruleset = selectedRuleset();
+    const api = gameApiForRuleset(ruleset);
     try {
-      game = createGame({ mode: 'simulation', playerCount, humanPlayers: 0, disableEvents });
+      game = api.createGame({ mode: 'simulation', playerCount, humanPlayers: 0, disableEvents });
       runSimulation(game);
       renderGame();
     } catch (err) {
@@ -192,7 +258,9 @@ function renderStartScreen() {
     const playerCount = Math.max(2, Math.min(4, Number(playersInput.value) || 4));
     const humanPlayers = Math.max(1, Math.min(playerCount, Number(humansInput.value) || 1));
     const disableEvents = document.querySelector('#disable-events').checked;
-    game = createGame({ mode: 'interactive', playerCount, humanPlayers, disableEvents });
+    const ruleset = selectedRuleset();
+    const api = gameApiForRuleset(ruleset);
+    game = api.createGame({ mode: 'interactive', playerCount, humanPlayers, disableEvents });
     autoPlayUntilHumanOrEnd(game);
     renderGame();
   });
@@ -201,13 +269,15 @@ function renderStartScreen() {
     const playerCount = Math.max(2, Math.min(4, Number(playersInput.value) || 4));
     const batchCount = Math.max(1, Math.min(100000, Number(document.querySelector('#batch-count').value) || 1000));
     const disableEvents = document.querySelector('#disable-events').checked;
+    const ruleset = selectedRuleset();
+    const api = gameApiForRuleset(ruleset);
     const aiModels = [
       document.querySelector('#batch-ai-1').value,
       document.querySelector('#batch-ai-2').value,
       document.querySelector('#batch-ai-3').value,
       document.querySelector('#batch-ai-4').value,
     ].slice(0, playerCount);
-    runBatchWithProgress({ playerCount, aiModels, disableEvents }, batchCount);
+    runBatchWithProgress({ playerCount, aiModels, disableEvents }, batchCount, api.runMultipleSimulations, ruleset);
   });
 
   const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
@@ -260,14 +330,15 @@ function renderProgressScreen(done, total) {
 
 const CHUNK_SIZE = 20; // simulations per async tick
 
-function runBatchWithProgress(config, total) {
+function runBatchWithProgress(config, total, runMultiple, ruleset) {
   batchResults = [];
+  batchRuleset = ruleset || 'classic';
   renderProgressScreen(0, total);
 
   function runChunk() {
     const chunkEnd = Math.min(batchResults.length + CHUNK_SIZE, total);
     try {
-      const chunk = runMultipleSimulations(config, chunkEnd - batchResults.length);
+      const chunk = runMultiple(config, chunkEnd - batchResults.length);
       // Renumber gameIndex to be sequential across chunks
       const offset = batchResults.length;
       for (const r of chunk) r.gameIndex = offset + r.gameIndex;
@@ -581,6 +652,7 @@ function renderBatchResults() {
     <main class="layout">
       <section class="panel">
         <h2>Batch Simulation Results (${n} games)</h2>
+        <p class="meta">Ruleset: ${labelForRuleset(batchRuleset)}</p>
         <button id="batch-back">← Back to Start</button>
 
         <h3>Summary</h3>
@@ -694,6 +766,11 @@ function renderLeaderboard() {
 }
 
 function renderHumanControls(active) {
+  const economy = uiEconomyForGame(game);
+  const marketCosts = economy.troopCosts.market;
+  const supplyCosts = economy.troopCosts.supply;
+  const specialistSurcharge = economy.specialistHireSurcharge;
+
   const specialistCards = active.hand.filter((card) => card.kind === 'specialist');
   const contracts = active.hand.filter((card) => card.kind === 'contract');
   const selectedIds = game.humanState.selectedContractIds || [];
@@ -709,7 +786,7 @@ function renderHumanControls(active) {
       .map(
         (card) => `
           <div class="specialist-row">
-            <button class="action" data-action="hire" data-id="${card.id}" title="${specialistRulesText(card)}">Hire ${card.name} (${card.cost})</button>
+            <button class="action" data-action="hire" data-id="${card.id}" title="${specialistRulesText(card)}">Hire ${card.name} (${card.cost + specialistSurcharge})</button>
             <span class="info-tip" data-tip="${specialistRulesText(card)}" aria-label="${card.name} rule">i</span>
           </div>
         `,
@@ -736,19 +813,19 @@ function renderHumanControls(active) {
           <div class="market-panel-box">
             <h4>Market & Equipment</h4>
             <div class="market-column">
-              <button class="action" data-action="buy-eq">Buy Equipment (1)</button>
-              <button class="action" data-action="buy-market" data-type="melee">Buy Market Melee (2)</button>
-              <button class="action" data-action="buy-market" data-type="ranged">Buy Market Ranged (3)</button>
-              <button class="action" data-action="buy-market" data-type="mounted">Buy Market Mounted (4)</button>
+              <button class="action" data-action="buy-eq">Buy Equipment (${economy.equipmentCost})</button>
+              <button class="action" data-action="buy-market" data-type="melee">Buy Market Melee (${marketCosts.melee})</button>
+              <button class="action" data-action="buy-market" data-type="ranged">Buy Market Ranged (${marketCosts.ranged})</button>
+              <button class="action" data-action="buy-market" data-type="mounted">Buy Market Mounted (${marketCosts.mounted})</button>
             </div>
           </div>
 
           <div class="market-panel-box">
             <h4>Supply Purchases</h4>
             <div class="market-column">
-              <button class="action" data-action="buy-supply" data-type="melee">Buy Supply Melee (4)</button>
-              <button class="action" data-action="buy-supply" data-type="ranged">Buy Supply Ranged (6)</button>
-              <button class="action" data-action="buy-supply" data-type="mounted">Buy Supply Mounted (8)</button>
+              <button class="action" data-action="buy-supply" data-type="melee">Buy Supply Melee (${supplyCosts.melee})</button>
+              <button class="action" data-action="buy-supply" data-type="ranged">Buy Supply Ranged (${supplyCosts.ranged})</button>
+              <button class="action" data-action="buy-supply" data-type="mounted">Buy Supply Mounted (${supplyCosts.mounted})</button>
             </div>
           </div>
 
@@ -769,7 +846,7 @@ function renderHumanControls(active) {
           <div class="market-panel-box offer-actions-box">
             <h4>Offer Actions</h4>
             <div class="market-column">
-              <button class="action" data-action="loan">Take Loan</button>
+              <button class="action" data-action="loan">Take Loan (+${economy.loanAmount})</button>
               <button class="primary" data-action="to-campaign">Finish Market</button>
               <button class="action undo-btn" data-action="undo" ${canUndo ? '' : 'disabled'}>↩ Undo</button>
             </div>
@@ -960,6 +1037,7 @@ function renderGame() {
           <h2>${game.mode === 'simulation' ? 'Simulation Results' : 'Interactive Game'}</h2>
           <button id="reset">New Game</button>
         </div>
+        <p class="meta">Ruleset: ${labelForRuleset(game.ruleset || 'classic')}</p>
         <p>Round ${game.round} | Active: ${active.name}${active.isHuman ? ' (Human)' : ' (AI)'} <span class="phase-badge">Current Phase: ${game.currentPhase || 'Event'}</span></p>
         <p class="meta">Contract data source: <a href="${CONTRACT_DATA_SYNC.sourceUrl}" target="_blank" rel="noreferrer">Google Sheet</a> | Last sync: ${CONTRACT_DATA_SYNC.syncedAt}</p>
         <p class="meta">Specialist data source: <a href="${SPECIALIST_DATA_SYNC.sourceUrl}" target="_blank" rel="noreferrer">Google Sheet</a> | Last sync: ${SPECIALIST_DATA_SYNC.syncedAt}</p>
