@@ -171,9 +171,18 @@ function renderStartScreen() {
           <span id="sync-specialists-status" class="sync-status"></span>
         </div>
         <div class="mode-buttons">
-          <button id="start-sim">Simulation Mode (AI only)</button>
-          <button id="start-int">Interactive Mode (humans + AI)</button>
-          <button id="start-batch">Batch Simulation</button>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <button id="start-sim">Simulation Mode (AI only)</button>
+            <span id="badge-sim" class="ruleset-badge" style="background: #e8f5e9; color: #2e7d32; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; white-space: nowrap;"></span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <button id="start-int">Interactive Mode (humans + AI)</button>
+            <span id="badge-int" class="ruleset-badge" style="background: #e8f5e9; color: #2e7d32; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; white-space: nowrap;"></span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <button id="start-batch">Batch Simulation</button>
+            <span id="badge-batch" class="ruleset-badge" style="background: #e8f5e9; color: #2e7d32; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; white-space: nowrap;"></span>
+          </div>
         </div>
         <form id="config-form">
           <label>Ruleset
@@ -238,6 +247,17 @@ function renderStartScreen() {
   function selectedRuleset() {
     return rulesetInput?.value === 'v2' ? 'v2' : 'classic';
   }
+
+  function updateRulesetBadges() {
+    const rulesetLabel = labelForRuleset(selectedRuleset());
+    document.querySelector('#badge-sim').textContent = rulesetLabel;
+    document.querySelector('#badge-int').textContent = rulesetLabel;
+    document.querySelector('#badge-batch').textContent = rulesetLabel;
+  }
+
+  updateRulesetBadges();
+
+  rulesetInput.addEventListener('change', updateRulesetBadges);
 
   document.querySelector('#start-sim').addEventListener('click', () => {
     const playerCount = Math.max(2, Math.min(4, Number(playersInput.value) || 4));
