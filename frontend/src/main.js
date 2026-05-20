@@ -9,6 +9,7 @@ import {
 } from './gameEngine';
 import {
   createGameV2,
+  autoPlayUntilHumanOrEnd as autoPlayUntilHumanOrEndV2,
   runMultipleSimulationsV2,
 } from './gameEngineV2';
 import { CONTRACT_DATA_SYNC } from './contractsData';
@@ -305,7 +306,7 @@ function renderStartScreen() {
     const disableEvents = document.querySelector('#disable-events').checked;
     const api = gameApiForRuleset('v2');
     game = api.createGame({ mode: 'interactive', playerCount, humanPlayers, disableEvents });
-    autoPlayUntilHumanOrEnd(game);
+    autoPlayUntilHumanOrEndV2(game);
     renderGame();
   });
 
@@ -405,14 +406,36 @@ function renderGame() {
   const handContracts = active.hand.filter((card) => card.kind === 'contract');
   const handEvents = active.hand.filter((card) => card.kind === 'event');
   const handSpecialists = active.hand.filter((card) => card.kind === 'specialist');
+  const isV2 = game.ruleset === 'v2';
+
   const tierCount = (tier, kind) =>
     (game.tierDecks?.[tier] || []).filter((card) => card.kind === kind).length;
-  const totalContracts = tierCount('A', 'contract') + tierCount('B', 'contract') + tierCount('C', 'contract');
-  const totalSpecialists = tierCount('A', 'specialist') + tierCount('B', 'specialist') + tierCount('C', 'specialist');
-  const totalEvents = tierCount('A', 'event') + tierCount('B', 'event') + tierCount('C', 'event');
+
+  const v2TierContractCount = (tier) => (game.v2ContractDecks?.[tier] || []).length;
+  const v2SpecialistCount = (game.v2SpecialistDeck || []).length;
+  const v2SpecialistMarketCount = (game.v2SpecialistMarket || []).length;
+  const v2EquipmentMarketCount = game.v2EquipmentMarket || 0;
+
+  const tierAContractCount = isV2 ? v2TierContractCount('A') : tierCount('A', 'contract');
+  const tierBContractCount = isV2 ? v2TierContractCount('B') : tierCount('B', 'contract');
+  const tierCContractCount = isV2 ? v2TierContractCount('C') : tierCount('C', 'contract');
+  const tierASpecialistCount = isV2 ? 0 : tierCount('A', 'specialist');
+  const tierBSpecialistCount = isV2 ? 0 : tierCount('B', 'specialist');
+  const tierCSpecialistCount = isV2 ? 0 : tierCount('C', 'specialist');
+  const tierAEventCount = isV2 ? 0 : tierCount('A', 'event');
+  const tierBEventCount = isV2 ? 0 : tierCount('B', 'event');
+  const tierCEventCount = isV2 ? 0 : tierCount('C', 'event');
+
+  const totalContracts = tierAContractCount + tierBContractCount + tierCContractCount;
+  const totalSpecialists = isV2 ? v2SpecialistCount : tierASpecialistCount + tierBSpecialistCount + tierCSpecialistCount;
+  const totalEvents = isV2 ? 0 : tierAEventCount + tierBEventCount + tierCEventCount;
+  const showOfferPanel = !(isV2 && game.mode === 'interactive');
 
   const intMode = interactiveModeForRuleset(game.ruleset || 'classic');
-  const controls = game.mode === 'interactive' && !game.isFinished && active.isHuman
+  const v2HumanSteps = ['v2-lot-selection', 'v2-draft-contracts', 'v2-recruit-specialists', 'v2-purchase-equipment'];
+  const hasPendingV2Step = game.ruleset === 'v2' && v2HumanSteps.includes(game.humanState?.step);
+  const shouldRenderControls = game.mode === 'interactive' && !game.isFinished && (active.isHuman || hasPendingV2Step);
+  const controls = shouldRenderControls
     ? intMode.renderHumanControls(game, uiEconomyForGame)
     : '';
 
@@ -426,7 +449,7 @@ function renderGame() {
           <button id="reset">New Game</button>
         </div>
         <p class="meta">Ruleset: ${labelForRuleset(game.ruleset || 'classic')}</p>
-        <p>Round ${game.round} | Active: ${active.name}${active.isHuman ? ' (Human)' : ' (AI)'} <span class="phase-badge">Current Phase: ${game.currentPhase || 'Event'}</span></p>
+        <p>Round ${game.round} | Active: ${active.name}${active.isHuman ? ' (Human)' : ' (AI)'} <span class="phase-badge">Current Phase: ${game.currentPhase || 'Event'}</span>${isV2 ? ` | Equipment Market: ${v2EquipmentMarketCount}` : ''}</p>
         <p class="meta">Contract data source: <a href="${CONTRACT_DATA_SYNC.sourceUrl}" target="_blank" rel="noreferrer">Google Sheet</a> | Last sync: ${CONTRACT_DATA_SYNC.syncedAt}</p>
         <p class="meta">Specialist data source: <a href="${SPECIALIST_DATA_SYNC.sourceUrl}" target="_blank" rel="noreferrer">Google Sheet</a> | Last sync: ${SPECIALIST_DATA_SYNC.syncedAt}</p>
         ${game.isFinished ? `<p class="winner">Winner: ${winner.player.name} (${winner.score.total} renown)</p>` : ''}
@@ -438,16 +461,18 @@ function renderGame() {
           <h3>Common Resources</h3>
           <p>Market: M${game.market.melee} / R${game.market.ranged} / Mo${game.market.mounted}</p>
           <p>Bag: M${game.bag.melee} / R${game.bag.ranged} / Mo${game.bag.mounted}</p>
-          <p>Supply: M${game.supply.melee} / R${game.supply.ranged} / Mo${game.supply.mounted} / E${game.supply.elite}</p>
+          <p>Supply: M${game.supply.melee} / R${game.supply.ranged} / Mo${game.supply.mounted} / E${game.supply.equipment ?? 0}</p>
           <p>Armoury tokens: ${game.armoury}</p>
-          <p>Tier A deck: C${tierCount('A', 'contract')} / S${tierCount('A', 'specialist')} / E${tierCount('A', 'event')}</p>
-          <p>Tier B deck: C${tierCount('B', 'contract')} / S${tierCount('B', 'specialist')} / E${tierCount('B', 'event')}</p>
-          <p>Tier C deck: C${tierCount('C', 'contract')} / S${tierCount('C', 'specialist')} / E${tierCount('C', 'event')}</p>
+          <p>Tier A deck: C${tierAContractCount} / S${tierASpecialistCount} / E${tierAEventCount}</p>
+          <p>Tier B deck: C${tierBContractCount} / S${tierBSpecialistCount} / E${tierBEventCount}</p>
+          <p>Tier C deck: C${tierCContractCount} / S${tierCSpecialistCount} / E${tierCEventCount}</p>
           <p>Main decks total: C${totalContracts} / S${totalSpecialists} / E${totalEvents}</p>
+          ${isV2 ? `<p>Specialist market: ${v2SpecialistMarketCount}</p>` : ''}
+          ${isV2 ? `<p>Equipment market: ${v2EquipmentMarketCount}</p>` : ''}
           <p>Rewards deck (Tier R contracts): ${game.rewardsDeck.length}</p>
         </div>
         <div>
-          ${renderOffer()}
+          ${showOfferPanel ? renderOffer() : ''}
         </div>
       </section>
 

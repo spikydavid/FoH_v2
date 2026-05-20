@@ -164,6 +164,61 @@ ul {
   gap: 8px;
 }
 
+.lot-selection-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.lot-card {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid #8b7658;
+  background: linear-gradient(180deg, #fff8eb, #efe2cc);
+  color: var(--ink);
+  box-shadow: 0 1px 0 rgba(43, 35, 25, 0.2);
+  transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
+}
+
+.lot-card:hover {
+  transform: translateY(-1px);
+  border-color: #5f1f26;
+  box-shadow: 0 5px 10px rgba(43, 35, 25, 0.18);
+}
+
+.lot-card:focus-visible {
+  outline: 2px solid #5f1f26;
+  outline-offset: 2px;
+}
+
+.lot-card-title {
+  font-weight: 700;
+  margin-bottom: 8px;
+  color: #5f1f26;
+}
+
+.lot-stats {
+  display: grid;
+  gap: 4px;
+  font-size: 0.9rem;
+}
+
+.lot-stat {
+  color: #3b3022;
+}
+
+.v2-market-summary {
+  background: #f5f0e3;
+  border: 1px solid #cab79d;
+  padding: 12px;
+  border-radius: 8px;
+  margin: 12px 0;
+}
+
 .market-resources {
   margin-bottom: 10px;
   display: grid;
@@ -383,6 +438,10 @@ ul {
 
   .offer-actions-box {
     grid-column: auto;
+  }
+
+  .lot-selection-grid {
+    grid-template-columns: 1fr;
   }
 
   .mode-buttons,

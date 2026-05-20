@@ -135,7 +135,7 @@ export function getRuleset(game) {
   return ECONOMY_RULES[ruleset] ? ruleset : RULESET_CLASSIC;
 }
 
-function economyRulesForGame(game) {
+export function economyRulesForGame(game) {
   return ECONOMY_RULES[getRuleset(game)];
 }
 
@@ -153,14 +153,7 @@ function loanAmountForGame(game) {
 
 function applyTurnIncome(game, player) {
   if (getRuleset(game) !== RULESET_V2) return;
-
-  const contractCountBonus = Math.min(3, Math.floor(player.scorePile.length / 2));
-  const typeDiversity = new Set(player.scorePile.map((card) => card.type)).size;
-  const diversityBonus = Math.min(2, typeDiversity);
-  const income = Math.max(0, 3 + contractCountBonus + diversityBonus - player.debts);
-
-  player.money += income;
-  addEffect(game, 'Income', `${player.name} gained ${income} income.`);
+  // V2: no turn income — players earn money only from completing contracts
 }
 
 function modelForSeat(playerIndex, playerCount) {
@@ -307,11 +300,13 @@ function countFace(rolls, face) {
 }
 
 function hasSpecialist(player, name) {
-  return player.retinue.some((card) => card.name === name);
+  const retinue = player.retinue || [];
+  return retinue.some((card) => card.name === name);
 }
 
 function countSpecialist(player, name) {
-  return player.retinue.filter((card) => card.name === name).length;
+  const retinue = player.retinue || [];
+  return retinue.filter((card) => card.name === name).length;
 }
 
 function gainEquipment(game, player, amount) {
@@ -818,6 +813,8 @@ function createInitialGame(config) {
 }
 
 function enlist(game) {
+  if (getRuleset(game) === RULESET_V2) return;
+
   for (const type of ['melee', 'ranged', 'mounted']) {
     // No-op, draw happens by pooled draws below.
     void type;
@@ -1221,6 +1218,17 @@ function applyRoundEndEvent(game, player) {
 }
 
 function muster(game, player) {
+  if (getRuleset(game) === RULESET_V2) {
+    // V2: no supply refill, no card draw — apply upkeep instead
+    const troopCount = troopTotal(player.troops);
+    const upkeepCost = troopCount * 2;
+    if (upkeepCost > 0) {
+      player.money -= upkeepCost;
+      addEffect(game, 'Upkeep', `${player.name} paid ${upkeepCost} upkeep (${troopCount} troops @ 2 each).`);
+    }
+    return;
+  }
+
   applyRoundEndEvent(game, player);
 
   const musterNeed = { melee: 3, ranged: 2, mounted: 1 };
@@ -1300,6 +1308,8 @@ export function refreshOffer(game) {
 }
 
 function autoDrawForAi(game, player) {
+  if (getRuleset(game) === RULESET_V2) return;
+
   const bonus = player.eventInPlay?.ongoing?.endOfTurnDrawBonus || 0;
   const draws = 2 + bonus;
 
@@ -1597,12 +1607,15 @@ function finalSetBonus(scorePile) {
   return bonus;
 }
 
-function computePlayerScore(player) {
+function computePlayerScore(player, options = {}) {
+  const { endgameCoinConversion = false } = options;
   const contractRenown = player.scorePile.reduce((sum, card) => sum + card.renown, 0);
   const huntBonus = countSpecialist(player, 'Trophy Maker') * player.scorePile.filter((card) => card.type === 'hunt').length;
   const setBonus = finalSetBonus(player.scorePile);
+  const coinRenown = endgameCoinConversion ? Math.floor((player.money || 0) / 3) : 0;
+  const moneyRemainder = (player.money || 0) % 3;
   const debtPenalty = player.debts * 6;
-  const total = contractRenown + setBonus + huntBonus - debtPenalty;
+  const total = contractRenown + setBonus + huntBonus + coinRenown - debtPenalty;
   const tierCounts = { A: 0, B: 0, C: 0, R: 0 };
   const troopCounts = {
     melee: player.troops.melee,
@@ -1625,6 +1638,7 @@ function computePlayerScore(player) {
     contractRenown,
     huntBonus,
     setBonus,
+    coinRenown,
     debtPenalty,
     total,
     contracts: player.scorePile.length,
@@ -1635,6 +1649,7 @@ function computePlayerScore(player) {
     selectedContracts,
     contractSuccessRate,
     money: player.money,
+    moneyRemainder,
     equipment: player.equipment,
   };
 }
@@ -1662,7 +1677,7 @@ export function nextPlayer(game) {
   }
 }
 
-function finishGame(game) {
+export function finishGame(game) {
   const tieBreak = new Map();
   for (const player of game.players) {
     tieBreak.set(player.id, Math.random());
@@ -1670,13 +1685,13 @@ function finishGame(game) {
 
   const ranking = game.players.map((player) => ({
     player,
-    score: computePlayerScore(player),
+    score: computePlayerScore(player, { endgameCoinConversion: true }),
   }));
 
   ranking.sort((a, b) => {
     if (b.score.total !== a.score.total) return b.score.total - a.score.total;
     if (b.score.contracts !== a.score.contracts) return b.score.contracts - a.score.contracts;
-    if (b.score.money !== a.score.money) return b.score.money - a.score.money;
+    if (b.score.moneyRemainder !== a.score.moneyRemainder) return b.score.moneyRemainder - a.score.moneyRemainder;
     return (tieBreak.get(a.player.id) || 0) - (tieBreak.get(b.player.id) || 0);
   });
 
@@ -1988,6 +2003,7 @@ export function humanToggleContractSelection(game, contractId) {
 function beginMuster(game, player) {
   setTurnPhase(game, 'Muster');
   muster(game, player);
+
   game.humanState.step = 'draw';
   game.humanState.drawChoicesRemaining = 2;
 }
@@ -2173,6 +2189,6 @@ export function autoPlayUntilHumanOrEnd(game) {
 export function scoreTable(game) {
   return game.players.map((player) => ({
     player,
-    score: computePlayerScore(player),
+    score: computePlayerScore(player, { endgameCoinConversion: !!game.isFinished }),
   }));
 }

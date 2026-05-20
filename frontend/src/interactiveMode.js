@@ -88,7 +88,7 @@ export function renderHumanControls(game, uiEconomyForGame) {
 
   if (game.humanState.step === 'campaign') {
     const selectedCount = selectedIds.length;
-    const preview = selectedCount > 0 ? previewBattleOutcome(game, selectedIds) : null;
+    const preview = null;
 
     const contractRows = contracts.map((card) => {
       const isSelected = selectedIds.includes(card.cardNumber);
@@ -126,50 +126,31 @@ export function renderHumanControls(game, uiEconomyForGame) {
   }
 
   if (game.humanState.step === 'battle') {
-    const selectedContracts = (game.humanState.selectedContractIds || [])
-      .map((id) => contracts.find((c) => c.cardNumber === id))
-      .filter(Boolean);
-
-    const battleStats = {
-      melee: 0,
-      ranged: 0,
-      mounted: 0,
-    };
-    const rollsByType = {};
-
-    if (game.humanState.rolls && game.humanState.rolls.length > 0) {
-      const rolls = game.humanState.rolls;
-      for (const roll of rolls) {
-        if (roll) {
-          battleStats[roll.type] = (battleStats[roll.type] || 0) + 1;
-          if (!rollsByType[roll.type]) rollsByType[roll.type] = [];
-          rollsByType[roll.type].push(roll);
-        }
-      }
+    const pb = game.humanState.pendingBattle;
+    if (!pb) {
+      return `<section class="panel"><p>Loading battle...</p></section>`;
     }
 
-    const contractQueue = selectedContracts.slice(1);
-    const currentContract = selectedContracts[0];
+    const currentContract = pb.currentContract;
+    const contractQueue = pb.contractQueue || [];
     const canUndo = (game.undoStack || []).length > 0;
 
-    const rerollRows = Object.keys(rollsByType)
+    const rerollRows = ['melee', 'ranged', 'mounted']
+      .filter((type) => pb.rolls[type] && pb.rolls[type].length > 0)
       .map((type) => {
-        const rolls = rollsByType[type];
+        const typedRolls = pb.rolls[type];
         return `
           <div>
-            <p style="font-weight: bold; margin-bottom: 8px;">${type.charAt(0).toUpperCase() + type.slice(1)} (${rolls.length})</p>
+            <p style="font-weight: bold; margin-bottom: 8px;">${type.charAt(0).toUpperCase() + type.slice(1)} (${typedRolls.length})</p>
             <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-              ${rolls.map((roll, idx) => {
-                const isSacrifice = (game.humanState.sacrificedDiceIndices || []).includes(
-                  game.humanState.rolls.indexOf(roll),
-                );
-                const isWild = roll.result === 6 || roll.result === 1;
-                const btnClass = isSacrifice ? 'sac-btn' : '';
+              ${typedRolls.map((rollValue, idx) => {
+                const isSacrifice = (pb.sacrificed[type] || []).includes(idx);
+                const isWild = rollValue === 6 || rollValue === 1;
                 const sacTitle = isWild ? '♦ Wild (use for equipment reroll only)' : 'Mark for sacrifice';
                 return `
                   <div class="die-group">
-                    <button class="die-btn" data-action="reroll-die" data-type="${type}" data-index="${game.humanState.rolls.indexOf(roll)}">${roll.result}</button>
-                    ${isSacrifice || !isWild ? `<button class="die-btn sac-btn" data-action="sacrifice-die" data-type="${type}" data-index="${game.humanState.rolls.indexOf(roll)}" title="${sacTitle}">💔</button>` : ''}
+                    <button class="die-btn" data-action="reroll-die" data-type="${type}" data-index="${idx}">${rollValue}</button>
+                    ${isSacrifice || !isWild ? `<button class="die-btn sac-btn" data-action="sacrifice-die" data-type="${type}" data-index="${idx}" title="${sacTitle}">💔</button>` : ''}
                   </div>
                 `;
               }).join('')}
