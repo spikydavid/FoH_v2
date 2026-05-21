@@ -23,7 +23,6 @@ import {
   humanV2SkipRecruitSpecialists,
   humanV2PurchaseEquipment,
   humanV2DonePurchasingEquipment,
-  economyRulesForGame,
 } from './gameEngineV2';
 
 export function renderHumanControls(game, uiEconomyForGame) {
@@ -236,20 +235,20 @@ export function renderHumanControls(game, uiEconomyForGame) {
     const recruitPlayer = recruitIdx !== undefined && recruitIdx !== null ? game.players[recruitIdx] : active;
     const specialistCards = game.v2SpecialistMarket || [];
     const retinueSize = (recruitPlayer.retinue || []).length;
-    const cost = 2 + retinueSize;
-    const canHire = retinueSize < 3 && specialistCards.length > 0 && recruitPlayer.money >= cost;
+    const canHireAny = retinueSize < 3 && specialistCards.some((card) => recruitPlayer.money >= (card.cost || 0));
     return `
       <section class="panel">
         <h3>Recruit Specialists</h3>
-        <p class="meta">${recruitPlayer.name} is recruiting from the specialist market (cost: ${cost} coins), or may pass.</p>
+        <p class="meta">${recruitPlayer.name} is recruiting from the specialist market (pay printed recruitment cost), or may pass.</p>
         <p class="meta">Market cards: ${specialistCards.length}</p>
         <div class="actions-grid">
           ${specialistCards.map((card) => `
             <div class="action-card">
               <h4>${card.title}</h4>
+              <p class="meta">Cost: ${card.cost || 0}</p>
               <p style="font-size:12px;margin:4px 0">${(card.effect || '').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</p>
-              <button class="action" data-action="v2-recruit" data-id="${card.id}" ${!canHire ? 'disabled' : ''}>
-                ${recruitPlayer.money >= cost ? `Hire (${cost} coins)` : `Need ${cost} coins (have ${recruitPlayer.money})`}
+              <button class="action" data-action="v2-recruit" data-id="${card.id}" ${(retinueSize >= 3 || recruitPlayer.money < (card.cost || 0)) ? 'disabled' : ''}>
+                ${retinueSize >= 3 ? 'Retinue full' : (recruitPlayer.money >= (card.cost || 0) ? `Hire (${card.cost || 0} coins)` : `Need ${card.cost || 0} coins (have ${recruitPlayer.money})`)}
               </button>
             </div>
           `).join('') || '<p class="meta">No specialists available in the market.</p>'}
@@ -262,14 +261,14 @@ export function renderHumanControls(game, uiEconomyForGame) {
   if (game.humanState.step === 'v2-purchase-equipment') {
     const pendingIdx = game.v2EquipmentPendingPlayerIndex;
     const purchasePlayer = pendingIdx !== undefined && pendingIdx !== null ? game.players[pendingIdx] : active;
-    const eqCost = economyRulesForGame(game).equipmentCost;
-    const market = game.v2EquipmentMarket || 0;
+    const eqCost = 1;
+    const market = game.armoury || 0;
     const canBuy = purchasePlayer.money >= eqCost && market > 0;
     return `
       <section class="panel">
         <h3>Purchase Equipment</h3>
-        <p class="meta">${purchasePlayer.name} may buy any amount or pass.</p>
-        <p class="meta">Coins: ${purchasePlayer.money} | Equipment: ${purchasePlayer.equipment} | Market: ${market}</p>
+        <p class="meta">${purchasePlayer.name} may buy one equipment (1 coin) or pass.</p>
+        <p class="meta">Coins: ${purchasePlayer.money} | Equipment: ${purchasePlayer.equipment} | Armoury: ${market}</p>
         <div class="actions-grid">
           <button class="action" data-action="v2-buy-eq" ${!canBuy ? 'disabled' : ''}>Buy Equipment (${eqCost} coins)</button>
         </div>

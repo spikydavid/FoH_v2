@@ -2,16 +2,13 @@ import {
   createGame as createClassicGame,
   runMultipleSimulations as runClassicMultipleSimulations,
   runAiTurn as runClassicAiTurn,
-  beginInteractiveTurn as beginClassicInteractiveTurn,
   autoPlayUntilHumanOrEnd as classicAutoPlayUntilHumanOrEnd,
   getActivePlayer,
   getRuleset,
-  nextPlayer,
-  maybeEndGame,
   addLog,
   finishGame,
-  economyRulesForGame,
   humanConfirmBattle as humanConfirmBattleClassic,
+  humanRunCampaign as humanRunCampaignClassic,
 } from './gameEngine';
 
 export * from './gameEngine';
@@ -170,131 +167,12 @@ function initializeV2RecruitPhase(game) {
 }
 
 function initializeV2EquipmentPhase(game) {
-  game.v2EquipmentMarket = 2 * (game.players?.length || 0);
-  game.v2EquipmentChoicesByPlayerId = {};
+  game.v2EquipmentPassedByPlayerId = {};
+  game.v2EquipmentTurnOrder = Array.from({ length: game.players.length }, (_, i) => game.players.length - 1 - i);
+  game.v2EquipmentTurnCursor = 0;
   game.v2EquipmentPendingPlayerIndex = undefined;
   game.v2EquipmentRoundDone = false;
-  addLog(game, `V2 Equipment Market created with ${game.v2EquipmentMarket} equipment.`);
-}
-
-function isV2EquipmentPhaseComplete(game) {
-  const choices = game.v2EquipmentChoicesByPlayerId || {};
-  const everyoneHadChance = game.players.every((p) => choices[p.id]);
-  return everyoneHadChance || (game.v2EquipmentMarket || 0) <= 0;
-}
-
-function aiV2PurchaseFromMarketOrPass(game, player) {
-  const cost = economyRulesForGame(game).equipmentCost;
-  let bought = 0;
-  while ((game.v2EquipmentMarket || 0) > 0 && player.money >= cost) {
-    player.money -= cost;
-    player.equipment = (player.equipment || 0) + 1;
-    game.v2EquipmentMarket -= 1;
-    bought += 1;
-  }
-  if (bought > 0) {
-    addLog(game, `${player.name} purchased ${bought} equipment from the market.`);
-  } else {
-    addLog(game, `${player.name} passed equipment purchase.`);
-  }
-}
-
-function finishV2PostCampaignPhase(game) {
-  // Force wrap so advanceRoundPhase exits post-campaign and starts next round.
-  game.currentPlayerIndex = game.players.length - 1;
-  game.humanState = { needsInput: false, step: null, selectedContractIds: [], drawChoicesRemaining: 0 };
-  advanceRoundPhase(game);
-}
-
-function resolveV2EquipmentPhaseUntilPause(game) {
-  if (!game.v2EquipmentChoicesByPlayerId) {
-    initializeV2EquipmentPhase(game);
-  }
-
-  for (let i = game.players.length - 1; i >= 0; i -= 1) {
-    if ((game.v2EquipmentMarket || 0) <= 0) break;
-    const player = game.players[i];
-    if (game.v2EquipmentChoicesByPlayerId[player.id]) continue;
-
-    if (player.isHuman) {
-      game.v2EquipmentPendingPlayerIndex = i;
-      game.humanState.step = 'v2-purchase-equipment';
-      game.humanState.needsInput = true;
-      return false;
-    }
-
-    aiV2PurchaseFromMarketOrPass(game, player);
-    game.v2EquipmentChoicesByPlayerId[player.id] = 'resolved';
-  }
-
-  if (isV2EquipmentPhaseComplete(game)) {
-    game.v2EquipmentRoundDone = true;
-    game.v2EquipmentPendingPlayerIndex = undefined;
-    addLog(game, 'V2 Equipment: Purchase phase complete.');
-    finishV2PostCampaignPhase(game);
-    return true;
-  }
-
-  return false;
-}
-
-function isV2RecruitPhaseComplete(game) {
-  const choices = game.v2RecruitChoicesByPlayerId || {};
-  return game.players.every((p) => choices[p.id]);
-}
-
-function aiV2RecruitFromMarketOrPass(game, player) {
-  const retinueSize = (player.retinue || []).length;
-  if (retinueSize >= 3) {
-    addLog(game, `${player.name} passed recruiting.`);
-    return;
-  }
-
-  const cost = 2 + retinueSize;
-  const market = game.v2SpecialistMarket || [];
-  const candidateIdx = market.findIndex((card) => player.money >= cost);
-  if (candidateIdx < 0) {
-    addLog(game, `${player.name} passed recruiting.`);
-    return;
-  }
-
-  const [card] = market.splice(candidateIdx, 1);
-  player.money -= cost;
-  player.retinue = player.retinue || [];
-  player.retinue.push(card);
-  addLog(game, `${player.name} recruited ${card.title} from the specialist market.`);
-}
-
-function resolveV2RecruitPhaseUntilPause(game) {
-  if (!game.v2RecruitChoicesByPlayerId) {
-    initializeV2RecruitPhase(game);
-  }
-
-  for (let i = game.players.length - 1; i >= 0; i -= 1) {
-    const player = game.players[i];
-    if (game.v2RecruitChoicesByPlayerId[player.id]) continue;
-
-    if (player.isHuman) {
-      game.v2RecruitPendingPlayerIndex = i;
-      game.humanState.step = 'v2-recruit-specialists';
-      game.humanState.needsInput = true;
-      return false;
-    }
-
-    aiV2RecruitFromMarketOrPass(game, player);
-    game.v2RecruitChoicesByPlayerId[player.id] = 'resolved';
-  }
-
-  if (isV2RecruitPhaseComplete(game)) {
-    game.v2RecruitRoundDone = true;
-    game.v2RecruitPendingPlayerIndex = undefined;
-    game.humanState.step = 'v2-purchase-equipment';
-    game.humanState.needsInput = true;
-    addLog(game, 'V2 Recruit: All players have recruited or passed.');
-    return true;
-  }
-
-  return false;
+  addLog(game, 'V2 Equipment phase initialized.');
 }
 
 function createV2Lots(game) {
@@ -339,19 +217,13 @@ function playV2MarketPhase(game) {
 }
 
 function playV2MarketPhaseWithOrder(game, selectionOrder, context = 'round') {
-  const supplyEquipment = game.supply.equipment ?? 0;
-
-  // Move all dice from market and supply back to the bag
+  // Move all dice from market back to the bag.
+  // V2 dead troops remain in supply and are not remustered.
   game.bag.melee += game.market.melee;
   game.bag.ranged += game.market.ranged;
   game.bag.mounted += game.market.mounted;
   game.market = { melee: 0, ranged: 0, mounted: 0 };
-  
-  game.bag.melee += game.supply.melee;
-  game.bag.ranged += game.supply.ranged;
-  game.bag.mounted += game.supply.mounted;
-  game.supply = { melee: 0, ranged: 0, mounted: 0, equipment: supplyEquipment };
-  
+
   addLog(game, 'V2 Market: All dice moved to muster bag.');
   
   // Create lots
@@ -416,20 +288,21 @@ function completeV2LotSelection(game) {
     return;
   }
 
-  // In-round market lot selection transitions into campaign.
+  // In-round muster lot selection transitions into campaign.
   game.roundPhase = 'campaign';
   game.currentPlayerIndex = 0;
   addLog(game, 'campaign phase begins.');
 }
 
 // -------------------------------------------------------
-// V2 Round Structure: Market → Campaign → Post-Campaign → Rotate
+// V2 Round Structure: Muster -> Campaign -> Payday -> Add Contracts
+// -> Recruit Specialists -> Buy Equipment -> Rotate
 // -------------------------------------------------------
 
 function advanceRoundPhase(game) {
   const n = game.players.length;
-  const phases = ['market', 'campaign', 'post-campaign'];
-  const currentPhaseIdx = phases.indexOf(game.roundPhase || 'market');
+  const phases = ['muster', 'campaign', 'payday', 'add-contracts', 'recruit-specialists', 'buy-equipment'];
+  const currentPhaseIdx = phases.indexOf(game.roundPhase || 'muster');
   
   // Move to next player in turn order
   game.currentPlayerIndex = (game.currentPlayerIndex + 1) % n;
@@ -446,39 +319,46 @@ function advanceRoundPhase(game) {
       const first = game.players.shift();
       game.players.push(first);
       game.round += 1;
-      game.roundPhase = 'market';
+      game.roundPhase = 'muster';
       game.currentPlayerIndex = 0;
-      // Reset completed contracts tracker for new round
-      game.v2RoundCompletedContracts = { A: 0, B: 0, C: 0 };
       game.v2DraftPool = undefined;
-      game.v2DraftIndex = 0;
-      game.v2DraftRound = 0;
+      game.v2DraftOrder = undefined;
+      game.v2DraftOrderIndex = 0;
+      game.v2DraftPicksRemainingByPlayerId = undefined;
+      game.v2DraftPendingPlayerIndex = undefined;
       game.v2RecruitRoundDone = false;
       game.v2RecruitChoicesByPlayerId = undefined;
       game.v2RecruitPendingPlayerIndex = undefined;
       game.v2EquipmentRoundDone = false;
-      game.v2EquipmentChoicesByPlayerId = undefined;
+      game.v2EquipmentPassedByPlayerId = undefined;
+      game.v2EquipmentTurnOrder = undefined;
+      game.v2EquipmentTurnCursor = 0;
       game.v2EquipmentPendingPlayerIndex = undefined;
-      game.v2EquipmentMarket = 0;
       refreshOfferV2(game);
+      if (!game.isFinished && game.players.some((p) => (p.scorePile || []).length >= 10)) {
+        game.isFinished = true;
+        finishGame(game);
+        return;
+      }
       addLog(game, `Round ${game.round} begins.`);
-    }
-  }
-  
-  // Check final round end
-  if (game.startedFinalRound && game.v2FinalRoundPlayerId) {
-    if (game.players[game.currentPlayerIndex]?.id === game.v2FinalRoundPlayerId) {
-      game.isFinished = true;
-      finishGame(game);
     }
   }
 }
 
 function endPlayerPhaseAction(game) {
-  maybeEndGame(game);
-  captureV2FinalRoundPlayer(game);
   game.humanState = { needsInput: false, step: null, selectedContractIds: [], drawChoicesRemaining: 0 };
   if (!game.isFinished) advanceRoundPhase(game);
+}
+
+function processV2PaydayForPlayer(game, player) {
+  const upkeepCost = 2 * troopTotal(player.troops);
+  while (player.money < upkeepCost) {
+    player.money += 10;
+    player.debts += 1;
+    addLog(game, `${player.name} took a loan (+10 coins, +1 debt) to make payroll.`);
+  }
+  player.money -= upkeepCost;
+  addLog(game, `${player.name} paid ${upkeepCost} coins in payroll.`);
 }
 
 // -------------------------------------------------------
@@ -486,71 +366,53 @@ function endPlayerPhaseAction(game) {
 // -------------------------------------------------------
 
 function finishCampaignForV2(game, player) {
-  // After campaign battle completes, apply upkeep and move to post-campaign
-  const upkeepCost = 2 * (player.troops.melee + player.troops.ranged + player.troops.mounted);
-  if (player.money >= upkeepCost) {
-    player.money -= upkeepCost;
-    addLog(game, `${player.name} paid ${upkeepCost} coins for troop upkeep.`);
-  } else {
-    addLog(game, `${player.name} couldn't pay full upkeep (${upkeepCost}), paid ${player.money}.`);
-    player.money = 0;
-  }
-  
-  // Move to post-campaign
-  if (player.isHuman) {
-    game.humanState.step = 'v2-draft-contracts';
-    game.humanState.needsInput = true;
-  } else {
-    game.v2PostCampaignPending = true;
-  }
+  addLog(game, `${player.name} completed campaign actions.`);
+  endPlayerPhaseAction(game);
 }
 
 function initializeDraftPool(game) {
-  // Count completed contracts by tier during this round
-  if (!game.v2RoundCompletedContracts) {
-    game.v2RoundCompletedContracts = { A: 0, B: 0, C: 0 };
-  }
-  
-  // Create draft pool from completed counts - draw from V2 contract decks
+  // Add Contracts: create a pool with 2 cards per player.
   game.v2DraftPool = { A: [], B: [], C: [] };
-  for (const tier of ['A', 'B', 'C']) {
-    const count = game.v2RoundCompletedContracts[tier] || 0;
-    for (let i = 0; i < count; i++) {
-      const deck = game.v2ContractDecks?.[tier];
-      if (deck && deck.length > 0) {
-        const idx = Math.floor(Math.random() * deck.length);
-        const [card] = deck.splice(idx, 1);
-        game.v2DraftPool[tier].push(card);
-      }
+  const totalToAdd = 2 * game.players.length;
+  for (let i = 0; i < totalToAdd; i += 1) {
+    const card = drawFromAnyV2ContractDeck(game);
+    if (!card) break;
+    if (game.v2DraftPool[card.tier]) {
+      game.v2DraftPool[card.tier].push(card);
     }
   }
-  
-  // Set up reverse-order draft sequence
+
+  // Reverse-order selection, each player picks two.
   const n = game.players.length;
-  game.v2DraftRound = 0;
-  game.v2DraftIndex = 0;
+  game.v2DraftOrder = Array.from({ length: n }, (_, i) => n - 1 - i);
+  game.v2DraftOrderIndex = 0;
+  game.v2DraftPendingPlayerIndex = undefined;
+  game.v2DraftPicksRemainingByPlayerId = {};
+  for (const p of game.players) {
+    game.v2DraftPicksRemainingByPlayerId[p.id] = 2;
+  }
   addLog(game, `Draft pool created: A${game.v2DraftPool.A.length} / B${game.v2DraftPool.B.length} / C${game.v2DraftPool.C.length}`);
 }
 
 function getDraftPlayerIndex(game) {
-  // Reverse order: last player drafts first
-  const n = game.players.length;
-  const reverseIdx = (n - 1 - game.v2DraftIndex) % n;
-  return reverseIdx;
+  const order = game.v2DraftOrder || [];
+  return order[game.v2DraftOrderIndex] ?? 0;
 }
 
 function isDraftPhaseOver(game) {
-  // Draft ends when pool is empty OR all players have 5+ cards
   const poolEmpty = !game.v2DraftPool || (game.v2DraftPool.A.length === 0 && game.v2DraftPool.B.length === 0 && game.v2DraftPool.C.length === 0);
   if (poolEmpty) return true;
-  return game.players.every((p) => p.hand.length >= 5);
+  const remaining = game.v2DraftPicksRemainingByPlayerId || {};
+  return game.players.every((p) => (remaining[p.id] || 0) <= 0);
 }
 
 function advanceDraftIndex(game) {
-  const n = game.players.length;
-  game.v2DraftIndex = (game.v2DraftIndex + 1) % n;
-  if (game.v2DraftIndex === 0) {
-    game.v2DraftRound += 1;
+  const idx = getDraftPlayerIndex(game);
+  const player = game.players[idx];
+  const remaining = game.v2DraftPicksRemainingByPlayerId || {};
+  const left = remaining[player.id] || 0;
+  if (left <= 0) {
+    game.v2DraftOrderIndex += 1;
   }
 }
 
@@ -559,29 +421,22 @@ function advanceDraftIndex(game) {
 // --- AI helpers ---
 
 function aiV2DraftContracts(game, player) {
-  // Keep drafting until hand has 5 cards or pool is exhausted
-  while (player.hand.length < 5 && !isDraftPhaseOver(game)) {
-    let drafted = false;
-    for (const tier of ['A', 'B', 'C']) {
-      if (game.v2DraftPool[tier] && game.v2DraftPool[tier].length > 0) {
-        const card = game.v2DraftPool[tier].shift();
-        player.hand.push(card);
-        addLog(game, `${player.name} drafted a ${tier}-tier contract.`);
-        drafted = true;
-        advanceDraftIndex(game);
-        break;
-      }
-    }
-    if (!drafted) break;
-    if (!isDraftPhaseOver(game)) {
-      const nextIdx = getDraftPlayerIndex(game);
-      if (nextIdx === game.players.indexOf(player)) {
-        continue;
-      } else {
-        break;
-      }
+  if (isDraftPhaseOver(game)) return;
+  const remaining = game.v2DraftPicksRemainingByPlayerId || {};
+  if ((remaining[player.id] || 0) <= 0) {
+    advanceDraftIndex(game);
+    return;
+  }
+  for (const tier of ['C', 'B', 'A']) {
+    if (game.v2DraftPool[tier] && game.v2DraftPool[tier].length > 0) {
+      const card = game.v2DraftPool[tier].shift();
+      player.hand.push(card);
+      remaining[player.id] -= 1;
+      addLog(game, `${player.name} drafted a ${tier}-tier contract.`);
+      break;
     }
   }
+  advanceDraftIndex(game);
 }
 
 function aiV2RecruitSpecialists() {}
@@ -614,19 +469,29 @@ function runAiV2PostCampaignPhases(game) {
 export function humanV2DraftContract(game, tier) {
   if (game.humanState.step !== 'v2-draft-contracts') return false;
   if (!game.v2DraftPool[tier] || game.v2DraftPool[tier].length === 0) return false;
-  const player = getActivePlayer(game);
+  const pendingIdx = game.v2DraftPendingPlayerIndex;
+  if (pendingIdx === undefined || pendingIdx === null) return false;
+  const player = game.players[pendingIdx];
+  if (!player || !player.isHuman) return false;
   const card = game.v2DraftPool[tier].shift();
   player.hand.push(card);
+  game.v2DraftPicksRemainingByPlayerId[player.id] -= 1;
   addLog(game, `${player.name} drafted a ${tier}-tier contract.`);
   advanceDraftIndex(game);
   if (isDraftPhaseOver(game)) {
-    game.humanState.step = 'v2-recruit-specialists';
+    game.humanState.step = null;
+    game.humanState.needsInput = false;
+    game.v2DraftPendingPlayerIndex = undefined;
+    game.roundPhase = 'recruit-specialists';
+    game.currentPlayerIndex = 0;
   } else {
     const nextIdx = getDraftPlayerIndex(game);
     const nextPlayer = game.players[nextIdx];
-    if (nextPlayer.isHuman) {
+    if (nextPlayer && nextPlayer.isHuman) {
+      game.v2DraftPendingPlayerIndex = nextIdx;
       game.humanState.needsInput = true;
     } else {
+      game.v2DraftPendingPlayerIndex = undefined;
       autoPlayUntilHumanOrEndV2(game);
       return true;
     }
@@ -636,17 +501,27 @@ export function humanV2DraftContract(game, tier) {
 
 export function humanV2SkipDraftContracts(game) {
   if (game.humanState.step !== 'v2-draft-contracts') return false;
-  const player = getActivePlayer(game);
+  const pendingIdx = game.v2DraftPendingPlayerIndex;
+  if (pendingIdx === undefined || pendingIdx === null) return false;
+  const player = game.players[pendingIdx];
+  if (!player || !player.isHuman) return false;
+  game.v2DraftPicksRemainingByPlayerId[player.id] = 0;
   addLog(game, `${player.name} skipped drafting.`);
   advanceDraftIndex(game);
   if (isDraftPhaseOver(game)) {
-    game.humanState.step = 'v2-recruit-specialists';
+    game.humanState.step = null;
+    game.humanState.needsInput = false;
+    game.v2DraftPendingPlayerIndex = undefined;
+    game.roundPhase = 'recruit-specialists';
+    game.currentPlayerIndex = 0;
   } else {
     const nextIdx = getDraftPlayerIndex(game);
     const nextPlayer = game.players[nextIdx];
-    if (nextPlayer.isHuman) {
+    if (nextPlayer && nextPlayer.isHuman) {
+      game.v2DraftPendingPlayerIndex = nextIdx;
       game.humanState.needsInput = true;
     } else {
+      game.v2DraftPendingPlayerIndex = undefined;
       autoPlayUntilHumanOrEndV2(game);
       return true;
     }
@@ -663,7 +538,7 @@ export function humanV2RecruitSpecialist(game, cardId) {
   if ((player.retinue || []).length >= 3) return false;
   const card = (game.v2SpecialistMarket || []).find((c) => c.id === cardId && c.kind === 'specialist');
   if (!card) return false;
-  const cost = 2 + (player.retinue || []).length;
+  const cost = card.cost || 0;
   if (player.money < cost) return false;
   player.money -= cost;
   player.retinue = player.retinue || [];
@@ -697,20 +572,21 @@ export function humanV2PurchaseEquipment(game) {
   if (pendingIdx === undefined || pendingIdx === null) return false;
   const player = game.players[pendingIdx];
   if (!player || !player.isHuman) return false;
-  const cost = economyRulesForGame(game).equipmentCost;
-  if ((game.v2EquipmentMarket || 0) <= 0) return false;
+  const cost = 1;
+  if ((game.armoury || 0) <= 0) return false;
   if (player.money < cost) return false;
   player.money -= cost;
   player.equipment = (player.equipment || 0) + 1;
-  game.v2EquipmentMarket -= 1;
+  game.armoury -= 1;
   addLog(game, `${player.name} purchased equipment from the market.`);
 
-  if ((game.v2EquipmentMarket || 0) <= 0) {
-    game.v2EquipmentChoicesByPlayerId = game.v2EquipmentChoicesByPlayerId || {};
-    game.v2EquipmentChoicesByPlayerId[player.id] = 'resolved';
-    game.v2EquipmentPendingPlayerIndex = undefined;
-    resolveV2EquipmentPhaseUntilPause(game);
+  game.v2EquipmentPassedByPlayerId = game.v2EquipmentPassedByPlayerId || {};
+  delete game.v2EquipmentPassedByPlayerId[player.id];
+  game.v2EquipmentPendingPlayerIndex = undefined;
+  if (game.v2EquipmentTurnOrder && game.v2EquipmentTurnOrder.length > 0) {
+    game.v2EquipmentTurnCursor = (game.v2EquipmentTurnCursor + 1) % game.v2EquipmentTurnOrder.length;
   }
+  resolveV2EquipmentPhaseUntilPause(game);
 
   return true;
 }
@@ -721,9 +597,12 @@ export function humanV2DonePurchasingEquipment(game) {
   if (pendingIdx === undefined || pendingIdx === null) return false;
   const player = game.players[pendingIdx];
   if (!player || !player.isHuman) return false;
-  game.v2EquipmentChoicesByPlayerId = game.v2EquipmentChoicesByPlayerId || {};
-  game.v2EquipmentChoicesByPlayerId[player.id] = 'resolved';
+  game.v2EquipmentPassedByPlayerId = game.v2EquipmentPassedByPlayerId || {};
+  game.v2EquipmentPassedByPlayerId[player.id] = true;
   game.v2EquipmentPendingPlayerIndex = undefined;
+  if (game.v2EquipmentTurnOrder && game.v2EquipmentTurnOrder.length > 0) {
+    game.v2EquipmentTurnCursor = (game.v2EquipmentTurnCursor + 1) % game.v2EquipmentTurnOrder.length;
+  }
   addLog(game, `${player.name} passed equipment purchase.`);
   resolveV2EquipmentPhaseUntilPause(game);
   return true;
@@ -740,29 +619,38 @@ export function createGameV2(config = {}) {
   redealV2HandsAndOffer(game);
   normalizeInitialOfferForV2(game);
 
-  // V2 starts with no money, no troops, and one equipment per player.
+  // V2 starts with fixed company economy and components.
+  const startIdx = Math.floor(Math.random() * Math.max(1, game.players.length));
+  if (startIdx > 0) {
+    game.players = [...game.players.slice(startIdx), ...game.players.slice(0, startIdx)];
+  }
+
   for (const player of game.players) {
     player.money = 0;
     player.troops = { melee: 0, ranged: 0, mounted: 0 };
     player.equipment = 1;
   }
+  game.bag = { melee: 36, ranged: 18, mounted: 12 };
+  game.market = { melee: 0, ranged: 0, mounted: 0 };
+  game.supply = { melee: 0, ranged: 0, mounted: 0, elite: 0 };
+  game.armoury = 2 * game.players.length;
 
-  // Run a pre-game market lot phase in reverse player order.
+  // Run a pre-game depot selection in reverse player order.
   const reverseOrder = game.players.map((_, idx) => game.players.length - 1 - idx);
   playV2MarketPhaseWithOrder(game, reverseOrder, 'pregame');
 
-  // Keep turn market pending so round 1 still runs its own market phase.
-  game.v2MarketDoneThisRound = false;
-  game.roundPhase = 'market';
+  // Round starts with muster.
+  game.roundPhase = 'muster';
   game.roundStartIndex = 0;
-  game.v2FinalRound = undefined;
   game.v2RecruitRoundDone = false;
   game.v2RecruitChoicesByPlayerId = undefined;
   game.v2RecruitPendingPlayerIndex = undefined;
   game.v2EquipmentRoundDone = false;
-  game.v2EquipmentChoicesByPlayerId = undefined;
+  game.v2EquipmentPassedByPlayerId = undefined;
+  game.v2EquipmentTurnOrder = undefined;
+  game.v2EquipmentTurnCursor = 0;
   game.v2EquipmentPendingPlayerIndex = undefined;
-  game.v2EquipmentMarket = 0;
+  game.v2DraftPendingPlayerIndex = undefined;
   return game;
 }
 
@@ -778,14 +666,17 @@ export function runAiTurn(game) {
 export function runAiTurnV2(game) {
   if (game.isFinished) return;
   
-  const phase = game.roundPhase || 'market';
+  const phase = game.roundPhase || 'muster';
   const player = getActivePlayer(game);
   
-  if (phase === 'market') {
-    // Market phase: create lots once at round start, then each player selects
+  if (phase === 'muster') {
+    // Muster phase: create depots once at round start, then each player selects.
     if (!game.v2Lots) {
       playV2MarketPhase(game);
     }
+    // If human got paused during lot selection, return.
+    if (game.humanState?.needsInput) return;
+
     // AI selects a lot
     if (game.v2Lots && game.v2Lots.length > 0) {
       const bestLotIdx = selectBestV2Lot(game.v2Lots, player);
@@ -798,43 +689,41 @@ export function runAiTurnV2(game) {
         addLog(game, `${player.name} selected a lot (${selectedLot.melee}M, ${selectedLot.ranged}R, ${selectedLot.mounted}Mo).`);
       }
     }
-    advanceRoundPhase(game);
+    endPlayerPhaseAction(game);
   } else if (phase === 'campaign') {
-    // Campaign phase: run campaign without calling classic turn system
-    // First do upkeep
-    const troopCount = player.troops.melee + player.troops.ranged + player.troops.mounted;
-    const upkeepCost = 2 * troopCount;
-    if (player.money >= upkeepCost) {
-      player.money -= upkeepCost;
-      addLog(game, `${player.name} paid ${upkeepCost} coins for troop upkeep.`);
-    } else {
-      addLog(game, `${player.name} couldn't afford full upkeep (${upkeepCost}), paid ${player.money}.`);
-      player.money = 0;
-    }
-    
-    // Select contracts (simplified: take first 1-2 affordable contracts)
+    // Select contracts (simplified AI policy).
     const affordableContracts = player.hand.filter((c) => c.kind === 'contract').slice(0, 1);
     if (affordableContracts.length > 0) {
-      // Simulate running the campaign (simplified - just mark them as completed)
-      if (!game.v2RoundCompletedContracts) {
-        game.v2RoundCompletedContracts = { A: 0, B: 0, C: 0 };
-      }
       for (const contract of affordableContracts) {
         player.money += contract.coins;
         player.scorePile.push(contract);
         player.hand = player.hand.filter((c) => c.id !== contract.id);
-        // Track completion by tier
-        game.v2RoundCompletedContracts[contract.tier] += 1;
         addLog(game, `${player.name} completed ${contract.title}.`);
       }
     }
-    
-    // Move to post-campaign
+
     game.humanState.selectedContractIds = [];
-    advanceRoundPhase(game);
-  } else if (phase === 'post-campaign') {
-    // Post-campaign phase: AI draft/recruit/purchase
-    runAiV2PostCampaignPhases(game);
+    endPlayerPhaseAction(game);
+  } else if (phase === 'payday') {
+    processV2PaydayForPlayer(game, player);
+    endPlayerPhaseAction(game);
+  } else if (phase === 'add-contracts') {
+    if (!game.v2DraftPool) {
+      initializeDraftPool(game);
+    }
+    const over = resolveV2AddContractsUntilPause(game);
+    if (over) {
+      game.roundPhase = 'recruit-specialists';
+      game.currentPlayerIndex = 0;
+    }
+  } else if (phase === 'recruit-specialists') {
+    const completed = resolveV2RecruitPhaseUntilPause(game);
+    if (completed) {
+      game.roundPhase = 'buy-equipment';
+      game.currentPlayerIndex = 0;
+    }
+  } else if (phase === 'buy-equipment') {
+    resolveV2EquipmentPhaseUntilPause(game);
   }
 }
 
@@ -857,11 +746,23 @@ function humanConfirmBattleV2(game) {
   
   // After classic function, check if more battles remain
   const pb = game.humanState.pendingBattle;
-  if (!pb) {
+  if (!pb || game.humanState.step === 'draw') {
     // No more battles - campaign complete, move to post-campaign
     finishCampaignForV2(game, player);
   }
   
+  return true;
+}
+
+export function humanRunCampaign(game) {
+  if (getRuleset(game) !== 'v2') {
+    return humanRunCampaignClassic(game);
+  }
+  const player = getActivePlayer(game);
+  humanRunCampaignClassic(game);
+  if (game.humanState.step === 'draw' && !game.humanState.pendingBattle) {
+    finishCampaignForV2(game, player);
+  }
   return true;
 }
 
@@ -870,34 +771,36 @@ export function beginInteractiveTurn(game) {
 }
 
 export function beginInteractiveTurnV2(game) {
-  const phase = game.roundPhase || 'market';
+  const phase = game.roundPhase || 'muster';
   const player = getActivePlayer(game);
   
-  if (phase === 'market') {
+  if (phase === 'muster') {
     if (!game.v2Lots) {
       playV2MarketPhase(game);
     }
   } else if (phase === 'campaign') {
     game.humanState.step = 'campaign';
     game.humanState.selectedContractIds = [];
-  } else if (phase === 'post-campaign') {
+  } else if (phase === 'payday') {
+    processV2PaydayForPlayer(game, player);
+    endPlayerPhaseAction(game);
+  } else if (phase === 'add-contracts') {
     if (!game.v2DraftPool) {
       initializeDraftPool(game);
     }
-    if (isDraftPhaseOver(game)) {
-      if (!game.v2RecruitRoundDone) {
-        resolveV2RecruitPhaseUntilPause(game);
-      } else {
-        resolveV2EquipmentPhaseUntilPause(game);
-      }
-    } else {
-      const nextIdx = getDraftPlayerIndex(game);
-      const nextPlayer = game.players[nextIdx];
-      if (nextPlayer === player && player.isHuman) {
-        game.humanState.step = 'v2-draft-contracts';
-        game.humanState.needsInput = true;
-      }
+    const done = resolveV2AddContractsUntilPause(game);
+    if (done) {
+      game.roundPhase = 'recruit-specialists';
+      game.currentPlayerIndex = 0;
     }
+  } else if (phase === 'recruit-specialists') {
+    const completed = resolveV2RecruitPhaseUntilPause(game);
+    if (completed) {
+      game.roundPhase = 'buy-equipment';
+      game.currentPlayerIndex = 0;
+    }
+  } else if (phase === 'buy-equipment') {
+    resolveV2EquipmentPhaseUntilPause(game);
   }
 }
 
@@ -949,6 +852,134 @@ function autoPlayUntilHumanOrEndV2(game) {
     }
     runAiTurnV2(game);
   }
+}
+
+function resolveV2AddContractsUntilPause(game) {
+  if (!game.v2DraftPool) {
+    initializeDraftPool(game);
+  }
+
+  while (!isDraftPhaseOver(game)) {
+    const idx = getDraftPlayerIndex(game);
+    const player = game.players[idx];
+    if (!player) break;
+    const remaining = game.v2DraftPicksRemainingByPlayerId || {};
+    if ((remaining[player.id] || 0) <= 0) {
+      game.v2DraftOrderIndex += 1;
+      continue;
+    }
+
+    if (player.isHuman) {
+      game.v2DraftPendingPlayerIndex = idx;
+      game.humanState.step = 'v2-draft-contracts';
+      game.humanState.needsInput = true;
+      return false;
+    }
+
+    aiV2DraftContracts(game, player);
+  }
+
+  game.v2DraftPendingPlayerIndex = undefined;
+  game.humanState.step = null;
+  game.humanState.needsInput = false;
+  return true;
+}
+
+function resolveV2RecruitPhaseUntilPause(game) {
+  if (!game.v2RecruitChoicesByPlayerId) {
+    initializeV2RecruitPhase(game);
+  }
+
+  for (let i = 0; i < game.players.length; i += 1) {
+    const player = game.players[i];
+    if (game.v2RecruitChoicesByPlayerId[player.id]) continue;
+
+    if (player.isHuman) {
+      game.v2RecruitPendingPlayerIndex = i;
+      game.humanState.step = 'v2-recruit-specialists';
+      game.humanState.needsInput = true;
+      return false;
+    }
+
+    aiV2RecruitFromMarketOrPass(game, player);
+    game.v2RecruitChoicesByPlayerId[player.id] = 'resolved';
+  }
+
+  topUpV2SpecialistMarket(game);
+  game.v2RecruitRoundDone = true;
+  game.v2RecruitPendingPlayerIndex = undefined;
+  game.humanState.needsInput = false;
+  addLog(game, 'V2 Recruit: All players have recruited or passed.');
+  return true;
+}
+
+function aiV2RecruitFromMarketOrPass(game, player) {
+  const retinueSize = (player.retinue || []).length;
+  if (retinueSize >= 3) {
+    addLog(game, `${player.name} passed recruiting.`);
+    return;
+  }
+
+  const market = game.v2SpecialistMarket || [];
+  const candidateIdx = market.findIndex((card) => player.money >= (card.cost || 0));
+  if (candidateIdx < 0) {
+    addLog(game, `${player.name} passed recruiting.`);
+    return;
+  }
+
+  const [card] = market.splice(candidateIdx, 1);
+  player.money -= (card.cost || 0);
+  player.retinue = player.retinue || [];
+  player.retinue.push(card);
+  addLog(game, `${player.name} recruited ${card.title} from the specialist market.`);
+}
+
+function resolveV2EquipmentPhaseUntilPause(game) {
+  if (!game.v2EquipmentTurnOrder) {
+    game.v2EquipmentTurnOrder = Array.from({ length: game.players.length }, (_, i) => game.players.length - 1 - i);
+    game.v2EquipmentTurnCursor = 0;
+    game.v2EquipmentPassedByPlayerId = {};
+    game.v2EquipmentPendingPlayerIndex = undefined;
+    game.v2EquipmentRoundDone = false;
+  }
+
+  while ((game.armoury || 0) > 0) {
+    const passed = game.v2EquipmentPassedByPlayerId || {};
+    const everyonePassed = game.players.every((p) => passed[p.id]);
+    if (everyonePassed) break;
+
+    const idx = game.v2EquipmentTurnOrder[game.v2EquipmentTurnCursor];
+    const player = game.players[idx];
+    if (!player) break;
+
+    if (player.isHuman) {
+      game.v2EquipmentPendingPlayerIndex = idx;
+      game.humanState.step = 'v2-purchase-equipment';
+      game.humanState.needsInput = true;
+      return false;
+    }
+
+    if (player.money >= 1) {
+      player.money -= 1;
+      player.equipment = (player.equipment || 0) + 1;
+      game.armoury -= 1;
+      delete passed[player.id];
+      addLog(game, `${player.name} purchased equipment from the market.`);
+    } else {
+      passed[player.id] = true;
+      addLog(game, `${player.name} passed equipment purchase.`);
+    }
+
+    game.v2EquipmentTurnCursor = (game.v2EquipmentTurnCursor + 1) % game.v2EquipmentTurnOrder.length;
+  }
+
+  game.v2EquipmentRoundDone = true;
+  game.v2EquipmentPendingPlayerIndex = undefined;
+  game.humanState.step = null;
+  game.humanState.needsInput = false;
+  addLog(game, 'V2 Equipment: Purchase phase complete.');
+  endPlayerPhaseAction(game);
+  return true;
 }
 
 export function runMultipleSimulationsV2(config, count) {
